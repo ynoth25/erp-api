@@ -1,0 +1,107 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: ERP API - Node.js TypeScript Lambda with Function URL
+
+Parameters:
+  FunctionName:
+    Type: String
+    Default: erp-api
+    Description: Name of the Lambda function (used for log group /aws/lambda/<name>)
+  DatabaseUrl:
+    Type: String
+    NoEcho: true
+    Description: DATABASE_URL for Prisma (e.g. postgresql://user:pass@host:5432/db)
+  # Aurora DSQL (optional – for IAM auth to Aurora DSQL)
+  DsqlHost:
+    Type: String
+    Default: ""
+    Description: Aurora DSQL cluster host (e.g. mycluster.dsql.us-east-1.on.aws). Leave empty to skip DSQL.
+  DsqlUser:
+    Type: String
+    Default: ""
+    NoEcho: true
+    Description: DSQL user (e.g. admin or app user)
+  DsqlDatabase:
+    Type: String
+    Default: "postgres"
+    Description: DSQL database name
+  DsqlRegion:
+    Type: String
+    Default: ""
+    Description: AWS region for DSQL (optional; often parsed from host)
+  DsqlClusterArn:
+    Type: String
+    Default: ""
+    Description: DSQL cluster ARN for IAM (e.g. arn:aws:dsql:us-east-1:123456789012:cluster/my-cluster). Required if DsqlHost is set.
+
+Conditions:
+  HasDsqlClusterArn: !Not [!Equals [!Ref DsqlClusterArn, ""]]
+
+Globals:
+  Function:
+    Runtime: nodejs20.x
+    Timeout: 30
+    MemorySize: 256
+    Architectures:
+      - x86_64
+
+Resources:
+  # Log group with 1-day retention (must exist before Lambda so Lambda attaches to it)
+  ApiFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${FunctionName}"
+      RetentionInDays: 1
+
+  ApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Ref FunctionName
+      Handler: index.handler
+      CodeUri: ./
+      Description: ERP API HTTP handler (Function URL)
+      Environment:
+        Variables:
+          DATABASE_URL: !Ref DatabaseUrl
+          DSQL_HOST: !Ref DsqlHost
+          DSQL_USER: !Ref DsqlUser
+          DSQL_DATABASE: !Ref DsqlDatabase
+          DSQL_REGION: !Ref DsqlRegion
+      Policies: !If
+        - HasDsqlClusterArn
+        - - Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dsql:DbConnect
+                  - dsql:DbConnectAdmin
+                Resource: !Ref DsqlClusterArn
+        - []
+      LoggingConfig:
+        LogGroup: !Ref ApiFunctionLogGroup
+      FunctionUrlConfig:
+        AuthType: NONE
+        Cors:
+          AllowOrigins:
+            - "*"
+          AllowMethods:
+            - GET
+            - POST
+            - PUT
+          AllowHeaders:
+            - "*"
+    DependsOn: ApiFunctionLogGroup
+    Metadata:
+      BuildMethod: makefile
+
+Outputs:
+  ApiFunctionUrl:
+    Description: Invoke URL for the Lambda Function URL
+    Value: !GetAtt ApiFunctionUrl.FunctionUrl
+    Export:
+      Name: !Sub "${AWS::StackName}-ApiFunctionUrl"
+  ApiFunctionArn:
+    Description: ARN of the API Lambda function
+    Value: !GetAtt ApiFunction.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-ApiFunctionArn"
