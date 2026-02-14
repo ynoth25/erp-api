@@ -9,9 +9,9 @@
     "prebuild": "npm run clean",
     "dev": "tsx watch src/local-server.ts",
     "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate dev",
-    "prisma:studio": "prisma studio",
-    "prisma:push": "prisma db push",
+    "dsql:push": "tsx scripts/prisma-dsql.ts db push",
+    "dsql:studio": "tsx scripts/prisma-dsql.ts studio",
+    "dsql:push:reset": "tsx scripts/prisma-dsql.ts db push --force-reset --accept-data-loss",
     "sam:build": "sam build",
     "sam:deploy": "sam deploy --guided",
     "sam:deploy:no-guide": "sam deploy"
@@ -27,6 +27,7 @@
     "@aws-sdk/dsql-signer": "^3.990.0",
     "@aws/aurora-dsql-node-postgres-connector": "^0.1.8",
     "@prisma/client": "^6.9.0",
+    "dotenv": "^17.3.1",
     "pg": "^8.18.0"
   },
   "devDependencies": {

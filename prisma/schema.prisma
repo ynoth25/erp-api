@@ -1,5 +1,10 @@
-// ERP API - Prisma schema
+// ERP API - Prisma schema (Aurora DSQL / PostgreSQL)
 // https://pris.ly/d/prisma-schema
+//
+// Aurora DSQL notes:
+//   - No sequences/serial: use @default(cuid()) or @default(uuid()) for IDs
+//   - Foreign keys work but with optimistic concurrency (no deferred constraints)
+//   - Use `prisma db push` (not `prisma migrate dev`) for Aurora DSQL
 
 generator client {
   provider      = "prisma-client-js"
@@ -11,10 +16,12 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Example model – add your own and run: npm run prisma:migrate
+// Aurora DSQL: unique indexes must be created manually with CREATE INDEX ASYNC.
+// After running `prisma db push`, execute:
+//   CREATE INDEX ASYNC idx_user_email ON "User" (email);
 model User {
   id        String   @id @default(cuid())
-  email     String   @unique
+  email     String
   name      String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

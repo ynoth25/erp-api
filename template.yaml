@@ -1,41 +1,29 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
-Description: ERP API - Node.js TypeScript Lambda with Function URL
+Description: ERP API - Node.js TypeScript Lambda with HTTP API + Aurora DSQL
 
 Parameters:
   FunctionName:
     Type: String
     Default: erp-api
-    Description: Name of the Lambda function (used for log group /aws/lambda/<name>)
-  DatabaseUrl:
-    Type: String
-    NoEcho: true
-    Description: DATABASE_URL for Prisma (e.g. postgresql://user:pass@host:5432/db)
-  # Aurora DSQL (optional – for IAM auth to Aurora DSQL)
+    Description: Name of the Lambda function
   DsqlHost:
     Type: String
-    Default: ""
-    Description: Aurora DSQL cluster host (e.g. mycluster.dsql.us-east-1.on.aws). Leave empty to skip DSQL.
-  DsqlUser:
-    Type: String
-    Default: ""
-    NoEcho: true
-    Description: DSQL user (e.g. admin or app user)
-  DsqlDatabase:
-    Type: String
-    Default: "postgres"
-    Description: DSQL database name
+    Description: Aurora DSQL cluster host (e.g. mycluster.dsql.ap-northeast-1.on.aws)
   DsqlRegion:
     Type: String
-    Default: ""
-    Description: AWS region for DSQL (optional; often parsed from host)
+    Description: AWS region of the DSQL cluster (e.g. ap-northeast-1)
+  DsqlUser:
+    Type: String
+    Default: admin
+    Description: DSQL database user (admin uses DbConnectAdmin token)
+  DsqlDatabase:
+    Type: String
+    Default: postgres
+    Description: DSQL database name
   DsqlClusterArn:
     Type: String
-    Default: ""
-    Description: DSQL cluster ARN for IAM (e.g. arn:aws:dsql:us-east-1:123456789012:cluster/my-cluster). Required if DsqlHost is set.
-
-Conditions:
-  HasDsqlClusterArn: !Not [!Equals [!Ref DsqlClusterArn, ""]]
+    Description: DSQL cluster ARN (e.g. arn:aws:dsql:ap-northeast-1:123456789012:cluster/abc)
 
 Globals:
   Function:
@@ -46,62 +34,76 @@ Globals:
       - x86_64
 
 Resources:
-  # Log group with 1-day retention (must exist before Lambda so Lambda attaches to it)
+  # CloudWatch log group — 1 day retention
   ApiFunctionLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub "/aws/lambda/${FunctionName}"
       RetentionInDays: 1
 
+  # HTTP API (API Gateway v2) — $1/million requests, no base charge
+  HttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: $default
+      CorsConfiguration:
+        AllowOrigins:
+          - "*"
+        AllowMethods:
+          - GET
+          - POST
+          - PUT
+          - DELETE
+          - OPTIONS
+        AllowHeaders:
+          - "*"
+
+  # Lambda function
   ApiFunction:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Ref FunctionName
       Handler: index.handler
       CodeUri: ./
-      Description: ERP API HTTP handler (Function URL)
+      Description: ERP API HTTP handler
       Environment:
         Variables:
-          DATABASE_URL: !Ref DatabaseUrl
           DSQL_HOST: !Ref DsqlHost
           DSQL_USER: !Ref DsqlUser
           DSQL_DATABASE: !Ref DsqlDatabase
           DSQL_REGION: !Ref DsqlRegion
-      Policies: !If
-        - HasDsqlClusterArn
-        - - Version: "2012-10-17"
-            Statement:
-              - Effect: Allow
-                Action:
-                  - dsql:DbConnect
-                  - dsql:DbConnectAdmin
-                Resource: !Ref DsqlClusterArn
-        - []
+          DSQL_PORT: "5432"
+      Policies:
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - dsql:DbConnect
+                - dsql:DbConnectAdmin
+              Resource: !Ref DsqlClusterArn
       LoggingConfig:
         LogGroup: !Ref ApiFunctionLogGroup
-      FunctionUrlConfig:
-        AuthType: NONE
-        Cors:
-          AllowOrigins:
-            - "*"
-          AllowMethods:
-            - GET
-            - POST
-            - PUT
-          AllowHeaders:
-            - "*"
+      Events:
+        CatchAll:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /{proxy+}
+            Method: ANY
+        Root:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /
+            Method: ANY
     DependsOn: ApiFunctionLogGroup
     Metadata:
       BuildMethod: makefile
 
 Outputs:
-  ApiFunctionUrl:
-    Description: Invoke URL for the Lambda Function URL
-    Value: !GetAtt ApiFunctionUrl.FunctionUrl
-    Export:
-      Name: !Sub "${AWS::StackName}-ApiFunctionUrl"
+  ApiEndpoint:
+    Description: HTTP API endpoint URL
+    Value: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
   ApiFunctionArn:
     Description: ARN of the API Lambda function
     Value: !GetAtt ApiFunction.Arn
-    Export:
-      Name: !Sub "${AWS::StackName}-ApiFunctionArn"
