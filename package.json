@@ -11,10 +11,12 @@
     "prisma:generate": "prisma generate",
     "dsql:push": "tsx scripts/prisma-dsql.ts db push",
     "dsql:studio": "tsx scripts/prisma-dsql.ts studio",
+    "dsql:rename:lowercase": "tsx scripts/dsql-rename-tables-lowercase.ts",
     "dsql:push:reset": "tsx scripts/prisma-dsql.ts db push --force-reset --accept-data-loss",
-    "sam:build": "sam build",
-    "sam:deploy": "sam deploy --guided",
-    "sam:deploy:no-guide": "sam deploy"
+    "dsql:seed": "tsx prisma/seed.ts",
+    "sam:build": "node scripts/sam-build.mjs",
+    "sam:deploy": "sam deploy --template-file .aws-sam/build/template.yaml --guided",
+    "sam:deploy:no-guide": "sam deploy --config-file samconfig.toml --config-env default"
   },
   "prisma": {
     "schema": "prisma/schema.prisma"
@@ -23,11 +25,13 @@
     "node": ">=20.x"
   },
   "dependencies": {
+    "@aws-sdk/client-cognito-identity-provider": "^3.1000.0",
     "@aws-sdk/credential-providers": "^3.990.0",
     "@aws-sdk/dsql-signer": "^3.990.0",
     "@aws/aurora-dsql-node-postgres-connector": "^0.1.8",
     "@prisma/client": "^6.9.0",
     "dotenv": "^17.3.1",
+    "jose": "^4.15.9",
     "pg": "^8.18.0"
   },
   "devDependencies": {

@@ -1,0 +1,12 @@
+version = 0.1
+
+[default.deploy.parameters]
+stack_name = "erp-api"
+template_file = ".aws-sam/build/template.yaml"
+resolve_s3 = true
+s3_prefix = "erp-api"
+region = "ap-northeast-1"
+capabilities = "CAPABILITY_IAM"
+confirm_changeset = false
+no_fail_on_empty_changeset = true
+parameter_overrides = "FunctionName=erp-api DsqlHost=f5trofmgmz4sac7iuqywe4fr6m.dsql.ap-northeast-1.on.aws DsqlRegion=ap-northeast-1 DsqlUser=admin DsqlDatabase=postgres DsqlClusterArn=arn:aws:dsql:ap-northeast-1:321106949489:cluster/f5trofmgmz4sac7iuqywe4fr6m ApiKeys=dev-test-key-change-me"

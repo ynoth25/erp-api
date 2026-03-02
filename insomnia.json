@@ -1,0 +1,594 @@
+{
+  "_type": "export",
+  "__export_format": 4,
+  "__export_date": "2026-02-15T00:00:00.000Z",
+  "__export_source": "insomnia.importexport:v2026.1.0",
+  "resources": [
+    {
+      "_id": "wrk_erp",
+      "_type": "workspace",
+      "name": "ERP API",
+      "description": "Multi-tenant ERP API — DTR, biometric integration, company management, admin",
+      "scope": "collection",
+      "parentId": null
+    },
+    {
+      "_id": "env_base",
+      "_type": "environment",
+      "name": "Base Environment",
+      "parentId": "wrk_erp",
+      "data": {
+        "base_url": "http://localhost:3000",
+        "api_key": "dev-test-key-change-me",
+        "bearer_token": "",
+        "company_id": "",
+        "member_id": "",
+        "device_id": "",
+        "user_id": ""
+      }
+    },
+    {
+      "_id": "env_local",
+      "_type": "environment",
+      "name": "Local",
+      "parentId": "env_base",
+      "data": {
+        "base_url": "http://localhost:3000"
+      }
+    },
+    {
+      "_id": "env_lambda",
+      "_type": "environment",
+      "name": "Lambda (Function URL)",
+      "parentId": "env_base",
+      "data": {
+        "base_url": "https://YOUR_FUNCTION_URL.lambda-url.ap-northeast-1.on.aws"
+      }
+    },
+
+    {
+      "_id": "fld_health",
+      "_type": "request_group",
+      "name": "Health",
+      "parentId": "wrk_erp",
+      "metaSortKey": 1
+    },
+    {
+      "_id": "fld_auth",
+      "_type": "request_group",
+      "name": "Auth / User",
+      "parentId": "wrk_erp",
+      "metaSortKey": 2
+    },
+    {
+      "_id": "fld_companies",
+      "_type": "request_group",
+      "name": "Companies",
+      "parentId": "wrk_erp",
+      "metaSortKey": 3
+    },
+    {
+      "_id": "fld_members",
+      "_type": "request_group",
+      "name": "Members",
+      "parentId": "wrk_erp",
+      "metaSortKey": 4
+    },
+    {
+      "_id": "fld_attendance",
+      "_type": "request_group",
+      "name": "Attendance / DTR",
+      "parentId": "wrk_erp",
+      "metaSortKey": 5
+    },
+    {
+      "_id": "fld_devices",
+      "_type": "request_group",
+      "name": "Devices",
+      "parentId": "wrk_erp",
+      "metaSortKey": 6
+    },
+    {
+      "_id": "fld_webhooks",
+      "_type": "request_group",
+      "name": "Webhooks",
+      "parentId": "wrk_erp",
+      "metaSortKey": 7
+    },
+    {
+      "_id": "fld_admin",
+      "_type": "request_group",
+      "name": "Admin",
+      "parentId": "wrk_erp",
+      "metaSortKey": 8
+    },
+    {
+      "_id": "fld_docs",
+      "_type": "request_group",
+      "name": "Docs",
+      "parentId": "wrk_erp",
+      "metaSortKey": 9
+    },
+
+    {
+      "_id": "req_health_root",
+      "_type": "request",
+      "name": "GET / (root health)",
+      "method": "GET",
+      "url": "{{ _.base_url }}/",
+      "headers": [{ "name": "x-api-key", "value": "{{ _.api_key }}" }],
+      "parentId": "fld_health",
+      "metaSortKey": 1
+    },
+    {
+      "_id": "req_health",
+      "_type": "request",
+      "name": "GET /health",
+      "method": "GET",
+      "url": "{{ _.base_url }}/health",
+      "headers": [{ "name": "x-api-key", "value": "{{ _.api_key }}" }],
+      "parentId": "fld_health",
+      "metaSortKey": 2
+    },
+    {
+      "_id": "req_health_db",
+      "_type": "request",
+      "name": "GET /health/db",
+      "method": "GET",
+      "url": "{{ _.base_url }}/health/db",
+      "headers": [{ "name": "x-api-key", "value": "{{ _.api_key }}" }],
+      "parentId": "fld_health",
+      "metaSortKey": 3
+    },
+
+    {
+      "_id": "req_auth_register",
+      "_type": "request",
+      "name": "POST /auth/register",
+      "method": "POST",
+      "url": "{{ _.base_url }}/auth/register",
+      "headers": [
+        { "name": "Authorization", "value": "Bearer {{ _.bearer_token }}" },
+        { "name": "Content-Type", "value": "application/json" }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\",\n  \"phone\": \"+639171234567\"\n}"
+      },
+      "parentId": "fld_auth",
+      "metaSortKey": 1
+    },
+    {
+      "_id": "req_auth_me_get",
+      "_type": "request",
+      "name": "GET /auth/me",
+      "method": "GET",
+      "url": "{{ _.base_url }}/auth/me",
+      "headers": [
+        { "name": "Authorization", "value": "Bearer {{ _.bearer_token }}" }
+      ],
+      "parentId": "fld_auth",
+      "metaSortKey": 2
+    },
+    {
+      "_id": "req_auth_me_put",
+      "_type": "request",
+      "name": "PUT /auth/me",
+      "method": "PUT",
+      "url": "{{ _.base_url }}/auth/me",
+      "headers": [
+        { "name": "Authorization", "value": "Bearer {{ _.bearer_token }}" },
+        { "name": "Content-Type", "value": "application/json" }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\",\n  \"phone\": \"+639171234567\"\n}"
+      },
+      "parentId": "fld_auth",
+      "metaSortKey": 3
+    },
+
+    {
+      "_id": "req_companies_create",
+      "_type": "request",
+      "name": "POST /companies",
+      "method": "POST",
+      "url": "{{ _.base_url }}/companies",
+      "headers": [
+        { "name": "Authorization", "value": "Bearer {{ _.bearer_token }}" },
+        { "name": "Content-Type", "value": "application/json" }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"name\": \"Acme Corp\",\n  \"address\": \"123 Main St, Metro Manila\",\n  \"timezone\": \"Asia/Manila\"\n}"
+      },
+      "parentId": "fld_companies",
+      "metaSortKey": 1
+    },
+    {
+      "_id": "req_companies_list",
+      "_type": "request",
+      "name": "GET /companies",
+      "method": "GET",
+      "url": "{{ _.base_url }}/companies",
+      "headers": [
+        { "name": "Authorization", "value": "Bearer {{ _.bearer_token }}" }
+      ],
+      "parentId": "fld_companies",
+      "metaSortKey": 2
+    },
+    {
+      "_id": "req_companies_join",
+      "_type": "request",
+      "name": "POST /companies/join",
+      "method": "POST",
+      "url": "{{ _.base_url }}/companies/join",
+      "headers": [
+        { "name": "Authorization", "value": "Bearer {{ _.bearer_token }}" },
+        { "name": "Content-Type", "value": "application/json" }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"code\": \"A1B2C3\",\n  \"employeeId\": \"EMP-001\",\n  \"department\": \"Engineering\",\n  \"position\": \"Developer\"\n}"
+      },
+      "parentId": "fld_companies",
+      "metaSortKey": 3
+    },
+    {
+      "_id": "req_companies_get",
+      "_type": "request",
+      "name": "GET /companies/:companyId",
+      "method": "GET",
+      "url": "{{ _.base_url }}/companies/{{ _.company_id }}",
+      "headers": [
+        { "name": "x-api-key", "value": "{{ _.api_key }}" }
+      ],
+      "parentId": "fld_companies",
+      "metaSortKey": 4
+    },
+    {
+      "_id": "req_companies_update",
+      "_type": "request",
+      "name": "PUT /companies/:companyId",
+      "method": "PUT",
+      "url": "{{ _.base_url }}/companies/{{ _.company_id }}",
+      "headers": [
+        { "name": "Authorization", "value": "Bearer {{ _.bearer_token }}" },
+        { "name": "Content-Type", "value": "application/json" }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"name\": \"Acme Corp Updated\",\n  \"address\": \"456 New St\"\n}"
+      },
+      "parentId": "fld_companies",
+      "metaSortKey": 5
+    },
+    {
+      "_id": "req_companies_regen",
+      "_type": "request",
+      "name": "POST /companies/:companyId/regenerate-code",
+      "method": "POST",
+      "url": "{{ _.base_url }}/companies/{{ _.company_id }}/regenerate-code",
+      "headers": [
+        { "name": "Authorization", "value": "Bearer {{ _.bearer_token }}" }
+      ],
+      "parentId": "fld_companies",
+      "metaSortKey": 6
+    },
+
+    {
+      "_id": "req_members_list",
+      "_type": "request",
+      "name": "GET /companies/:companyId/members",
+      "method": "GET",
+      "url": "{{ _.base_url }}/companies/{{ _.company_id }}/members",
+      "headers": [
+        { "name": "x-api-key", "value": "{{ _.api_key }}" }
+      ],
+      "parameters": [
+        { "name": "status", "value": "", "disabled": true },
+        { "name": "role", "value": "", "disabled": true },
+        { "name": "memberType", "value": "", "disabled": true },
+        { "name": "search", "value": "", "disabled": true }
+      ],
+      "parentId": "fld_members",
+      "metaSortKey": 1
+    },
+    {
+      "_id": "req_members_get",
+      "_type": "request",
+      "name": "GET /companies/:companyId/members/:memberId",
+      "method": "GET",
+      "url": "{{ _.base_url }}/companies/{{ _.company_id }}/members/{{ _.member_id }}",
+      "headers": [
+        { "name": "x-api-key", "value": "{{ _.api_key }}" }
+      ],
+      "parentId": "fld_members",
+      "metaSortKey": 2
+    },
+    {
+      "_id": "req_members_update",
+      "_type": "request",
+      "name": "PUT /companies/:companyId/members/:memberId",
+      "method": "PUT",
+      "url": "{{ _.base_url }}/companies/{{ _.company_id }}/members/{{ _.member_id }}",
+      "headers": [
+        { "name": "Authorization", "value": "Bearer {{ _.bearer_token }}" },
+        { "name": "Content-Type", "value": "application/json" }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"role\": \"ADMIN\",\n  \"department\": \"Engineering\",\n  \"position\": \"Lead\"\n}"
+      },
+      "parentId": "fld_members",
+      "metaSortKey": 3
+    },
+    {
+      "_id": "req_members_approve",
+      "_type": "request",
+      "name": "POST /companies/:companyId/members/:memberId/approve",
+      "method": "POST",
+      "url": "{{ _.base_url }}/companies/{{ _.company_id }}/members/{{ _.member_id }}/approve",
+      "headers": [
+        { "name": "Authorization", "value": "Bearer {{ _.bearer_token }}" }
+      ],
+      "parentId": "fld_members",
+      "metaSortKey": 4
+    },
+
+    {
+      "_id": "req_clock_in",
+      "_type": "request",
+      "name": "POST /companies/:companyId/clock-in",
+      "method": "POST",
+      "url": "{{ _.base_url }}/companies/{{ _.company_id }}/clock-in",
+      "headers": [
+        { "name": "Authorization", "value": "Bearer {{ _.bearer_token }}" },
+        { "name": "Content-Type", "value": "application/json" }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"source\": \"WEB\",\n  \"remarks\": \"Good morning\"\n}"
+      },
+      "parentId": "fld_attendance",
+      "metaSortKey": 1
+    },
+    {
+      "_id": "req_clock_out",
+      "_type": "request",
+      "name": "POST /companies/:companyId/clock-out",
+      "method": "POST",
+      "url": "{{ _.base_url }}/companies/{{ _.company_id }}/clock-out",
+      "headers": [
+        { "name": "Authorization", "value": "Bearer {{ _.bearer_token }}" },
+        { "name": "Content-Type", "value": "application/json" }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"source\": \"WEB\",\n  \"remarks\": \"End of shift\"\n}"
+      },
+      "parentId": "fld_attendance",
+      "metaSortKey": 2
+    },
+    {
+      "_id": "req_attendance_list",
+      "_type": "request",
+      "name": "GET /companies/:companyId/attendance",
+      "method": "GET",
+      "url": "{{ _.base_url }}/companies/{{ _.company_id }}/attendance",
+      "headers": [
+        { "name": "x-api-key", "value": "{{ _.api_key }}" }
+      ],
+      "parameters": [
+        { "name": "memberId", "value": "", "disabled": true },
+        { "name": "from", "value": "2026-02-01", "disabled": true },
+        { "name": "to", "value": "2026-02-15", "disabled": true },
+        { "name": "status", "value": "", "disabled": true }
+      ],
+      "parentId": "fld_attendance",
+      "metaSortKey": 3
+    },
+    {
+      "_id": "req_attendance_daily",
+      "_type": "request",
+      "name": "GET /companies/:companyId/attendance/daily",
+      "method": "GET",
+      "url": "{{ _.base_url }}/companies/{{ _.company_id }}/attendance/daily",
+      "headers": [
+        { "name": "x-api-key", "value": "{{ _.api_key }}" }
+      ],
+      "parameters": [
+        { "name": "date", "value": "2026-02-15" }
+      ],
+      "parentId": "fld_attendance",
+      "metaSortKey": 4
+    },
+    {
+      "_id": "req_clock_events",
+      "_type": "request",
+      "name": "GET /companies/:companyId/clock-events",
+      "method": "GET",
+      "url": "{{ _.base_url }}/companies/{{ _.company_id }}/clock-events",
+      "headers": [
+        { "name": "x-api-key", "value": "{{ _.api_key }}" }
+      ],
+      "parameters": [
+        { "name": "memberId", "value": "", "disabled": true },
+        { "name": "date", "value": "2026-02-15", "disabled": true },
+        { "name": "attendanceId", "value": "", "disabled": true }
+      ],
+      "parentId": "fld_attendance",
+      "metaSortKey": 5
+    },
+
+    {
+      "_id": "req_devices_list",
+      "_type": "request",
+      "name": "GET /companies/:companyId/devices",
+      "method": "GET",
+      "url": "{{ _.base_url }}/companies/{{ _.company_id }}/devices",
+      "headers": [
+        { "name": "x-api-key", "value": "{{ _.api_key }}" }
+      ],
+      "parentId": "fld_devices",
+      "metaSortKey": 1
+    },
+    {
+      "_id": "req_devices_register",
+      "_type": "request",
+      "name": "POST /companies/:companyId/devices",
+      "method": "POST",
+      "url": "{{ _.base_url }}/companies/{{ _.company_id }}/devices",
+      "headers": [
+        { "name": "Authorization", "value": "Bearer {{ _.bearer_token }}" },
+        { "name": "Content-Type", "value": "application/json" }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"name\": \"Main Entrance Scanner\",\n  \"deviceType\": \"FINGERPRINT\",\n  \"serialNumber\": \"FP-2026-001\",\n  \"location\": \"Building A Lobby\"\n}"
+      },
+      "parentId": "fld_devices",
+      "metaSortKey": 2
+    },
+    {
+      "_id": "req_devices_update",
+      "_type": "request",
+      "name": "PUT /companies/:companyId/devices/:deviceId",
+      "method": "PUT",
+      "url": "{{ _.base_url }}/companies/{{ _.company_id }}/devices/{{ _.device_id }}",
+      "headers": [
+        { "name": "Authorization", "value": "Bearer {{ _.bearer_token }}" },
+        { "name": "Content-Type", "value": "application/json" }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"name\": \"Updated Scanner Name\",\n  \"location\": \"Building B\",\n  \"isActive\": true\n}"
+      },
+      "parentId": "fld_devices",
+      "metaSortKey": 3
+    },
+
+    {
+      "_id": "req_webhook_biometric",
+      "_type": "request",
+      "name": "POST /webhook/biometric",
+      "method": "POST",
+      "url": "{{ _.base_url }}/webhook/biometric",
+      "headers": [
+        { "name": "x-device-key", "value": "YOUR_DEVICE_API_KEY" },
+        { "name": "Content-Type", "value": "application/json" }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"employeeId\": \"EMP-001\",\n  \"eventType\": \"CLOCK_IN\",\n  \"remarks\": \"Fingerprint scan\"\n}"
+      },
+      "parentId": "fld_webhooks",
+      "metaSortKey": 1
+    },
+
+    {
+      "_id": "req_admin_users_list",
+      "_type": "request",
+      "name": "GET /admin/users",
+      "method": "GET",
+      "url": "{{ _.base_url }}/admin/users",
+      "headers": [
+        { "name": "x-api-key", "value": "{{ _.api_key }}" }
+      ],
+      "parameters": [
+        { "name": "search", "value": "", "disabled": true },
+        { "name": "isAdmin", "value": "", "disabled": true },
+        { "name": "isActive", "value": "", "disabled": true },
+        { "name": "page", "value": "1", "disabled": true },
+        { "name": "limit", "value": "50", "disabled": true }
+      ],
+      "parentId": "fld_admin",
+      "metaSortKey": 1
+    },
+    {
+      "_id": "req_admin_users_get",
+      "_type": "request",
+      "name": "GET /admin/users/:userId",
+      "method": "GET",
+      "url": "{{ _.base_url }}/admin/users/{{ _.user_id }}",
+      "headers": [
+        { "name": "x-api-key", "value": "{{ _.api_key }}" }
+      ],
+      "parentId": "fld_admin",
+      "metaSortKey": 2
+    },
+    {
+      "_id": "req_admin_users_update",
+      "_type": "request",
+      "name": "PUT /admin/users/:userId",
+      "method": "PUT",
+      "url": "{{ _.base_url }}/admin/users/{{ _.user_id }}",
+      "headers": [
+        { "name": "x-api-key", "value": "{{ _.api_key }}" },
+        { "name": "Content-Type", "value": "application/json" }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"isAdmin\": true,\n  \"isActive\": true\n}"
+      },
+      "parentId": "fld_admin",
+      "metaSortKey": 3
+    },
+    {
+      "_id": "req_admin_companies_list",
+      "_type": "request",
+      "name": "GET /admin/companies",
+      "method": "GET",
+      "url": "{{ _.base_url }}/admin/companies",
+      "headers": [
+        { "name": "x-api-key", "value": "{{ _.api_key }}" }
+      ],
+      "parameters": [
+        { "name": "search", "value": "", "disabled": true },
+        { "name": "isActive", "value": "", "disabled": true },
+        { "name": "page", "value": "1", "disabled": true },
+        { "name": "limit", "value": "50", "disabled": true }
+      ],
+      "parentId": "fld_admin",
+      "metaSortKey": 4
+    },
+    {
+      "_id": "req_admin_add_user",
+      "_type": "request",
+      "name": "POST /admin/companies/:companyId/add-user",
+      "method": "POST",
+      "url": "{{ _.base_url }}/admin/companies/{{ _.company_id }}/add-user",
+      "headers": [
+        { "name": "x-api-key", "value": "{{ _.api_key }}" },
+        { "name": "Content-Type", "value": "application/json" }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"email\": \"newuser@example.com\",\n  \"firstName\": \"Jane\",\n  \"lastName\": \"Smith\",\n  \"phone\": \"+639181234567\",\n  \"role\": \"MEMBER\",\n  \"memberType\": \"EMPLOYEE\",\n  \"employeeId\": \"EMP-100\",\n  \"department\": \"Engineering\",\n  \"position\": \"Developer\"\n}"
+      },
+      "parentId": "fld_admin",
+      "metaSortKey": 5
+    },
+
+    {
+      "_id": "req_docs_swagger",
+      "_type": "request",
+      "name": "GET /docs (Swagger UI)",
+      "method": "GET",
+      "url": "{{ _.base_url }}/docs",
+      "headers": [],
+      "parentId": "fld_docs",
+      "metaSortKey": 1
+    },
+    {
+      "_id": "req_docs_openapi",
+      "_type": "request",
+      "name": "GET /docs/openapi.json",
+      "method": "GET",
+      "url": "{{ _.base_url }}/docs/openapi.json",
+      "headers": [],
+      "parentId": "fld_docs",
+      "metaSortKey": 2
+    }
+  ]
+}

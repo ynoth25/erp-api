@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
-Description: ERP API - Node.js TypeScript Lambda with HTTP API + Aurora DSQL
+Description: ERP API - Node.js TypeScript Lambda with Function URL + Aurora DSQL
 
 Parameters:
   FunctionName:
@@ -24,6 +24,15 @@ Parameters:
   DsqlClusterArn:
     Type: String
     Description: DSQL cluster ARN (e.g. arn:aws:dsql:ap-northeast-1:123456789012:cluster/abc)
+  ApiKeys:
+    Type: String
+    NoEcho: true
+    Description: Comma-separated API keys that clients must send in x-api-key header
+  AllowedOrigins:
+    Type: String
+    Default: ""
+    Description: Comma-separated allowed origins for CORS (e.g. https://myapp.com,http://localhost:3001)
+
 
 Globals:
   Function:
@@ -34,6 +43,56 @@ Globals:
       - x86_64
 
 Resources:
+  # ─── Cognito User Pool (free up to 50K MAU) ───────────
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: !Sub "${FunctionName}-users"
+      AutoVerifiedAttributes:
+        - email
+      UsernameAttributes:
+        - email
+      Schema:
+        - Name: email
+          AttributeDataType: String
+          Required: true
+          Mutable: true
+        - Name: name
+          AttributeDataType: String
+          Required: false
+          Mutable: true
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireLowercase: true
+          RequireUppercase: true
+          RequireNumbers: true
+          RequireSymbols: false
+      AccountRecoverySetting:
+        RecoveryMechanisms:
+          - Name: verified_email
+            Priority: 1
+
+  # App client for web + mobile (no client secret — public client for SPA/mobile)
+  UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: !Sub "${FunctionName}-app"
+      UserPoolId: !Ref UserPool
+      GenerateSecret: false
+      ExplicitAuthFlows:
+        - ALLOW_USER_SRP_AUTH
+        - ALLOW_USER_PASSWORD_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+      PreventUserExistenceErrors: ENABLED
+      AccessTokenValidity: 1
+      IdTokenValidity: 1
+      RefreshTokenValidity: 30
+      TokenValidityUnits:
+        AccessToken: hours
+        IdToken: hours
+        RefreshToken: days
+
   # CloudWatch log group — 1 day retention
   ApiFunctionLogGroup:
     Type: AWS::Logs::LogGroup
@@ -41,24 +100,7 @@ Resources:
       LogGroupName: !Sub "/aws/lambda/${FunctionName}"
       RetentionInDays: 1
 
-  # HTTP API (API Gateway v2) — $1/million requests, no base charge
-  HttpApi:
-    Type: AWS::Serverless::HttpApi
-    Properties:
-      StageName: $default
-      CorsConfiguration:
-        AllowOrigins:
-          - "*"
-        AllowMethods:
-          - GET
-          - POST
-          - PUT
-          - DELETE
-          - OPTIONS
-        AllowHeaders:
-          - "*"
-
-  # Lambda function
+  # Lambda function with Function URL (free — no API Gateway cost)
   ApiFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -73,6 +115,11 @@ Resources:
           DSQL_DATABASE: !Ref DsqlDatabase
           DSQL_REGION: !Ref DsqlRegion
           DSQL_PORT: "5432"
+          API_KEYS: !Ref ApiKeys
+          ALLOWED_ORIGINS: !Ref AllowedOrigins
+          COGNITO_USER_POOL_ID: !Ref UserPool
+          COGNITO_CLIENT_ID: !Ref UserPoolClient
+          COGNITO_REGION: !Ref AWS::Region
       Policies:
         - Version: "2012-10-17"
           Statement:
@@ -81,29 +128,39 @@ Resources:
                 - dsql:DbConnect
                 - dsql:DbConnectAdmin
               Resource: !Ref DsqlClusterArn
-      LoggingConfig:
-        LogGroup: !Ref ApiFunctionLogGroup
-      Events:
-        CatchAll:
-          Type: HttpApi
-          Properties:
-            ApiId: !Ref HttpApi
-            Path: /{proxy+}
-            Method: ANY
-        Root:
-          Type: HttpApi
-          Properties:
-            ApiId: !Ref HttpApi
-            Path: /
-            Method: ANY
+      FunctionUrlConfig:
+        AuthType: NONE
+        InvokeMode: BUFFERED
+        Cors:
+          AllowOrigins:
+            - "*"
+          AllowMethods:
+            - GET
+            - POST
+            - PUT
+            - PATCH
+            - DELETE
+          AllowHeaders:
+            - content-type
+            - x-api-key
+            - x-device-key
+            - authorization
+          MaxAge: 86400
     DependsOn: ApiFunctionLogGroup
-    Metadata:
-      BuildMethod: makefile
 
 Outputs:
-  ApiEndpoint:
-    Description: HTTP API endpoint URL
-    Value: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+  ApiFunctionUrl:
+    Description: Lambda Function URL (free, no API Gateway)
+    Value: !GetAtt ApiFunctionUrl.FunctionUrl
   ApiFunctionArn:
     Description: ARN of the API Lambda function
     Value: !GetAtt ApiFunction.Arn
+  CognitoUserPoolId:
+    Description: Cognito User Pool ID (use in mobile/web app SDK config)
+    Value: !Ref UserPool
+  CognitoClientId:
+    Description: Cognito App Client ID (use in mobile/web app SDK config)
+    Value: !Ref UserPoolClient
+  CognitoRegion:
+    Description: Cognito region
+    Value: !Ref AWS::Region

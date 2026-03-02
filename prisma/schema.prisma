@@ -1,10 +1,17 @@
-// ERP API - Prisma schema (Aurora DSQL / PostgreSQL)
+// ERP API — Multi-tenant DTR platform
 // https://pris.ly/d/prisma-schema
 //
-// Aurora DSQL notes:
-//   - No sequences/serial: use @default(cuid()) or @default(uuid()) for IDs
-//   - Foreign keys work but with optimistic concurrency (no deferred constraints)
-//   - Use `prisma db push` (not `prisma migrate dev`) for Aurora DSQL
+// Architecture: Company is the tenant. Users register → join a Company as a
+// CompanyMember → clock in/out → Attendance + ClockEvent records are created.
+// Biometric devices authenticate with their own API key and post clock events
+// directly via webhook.
+//
+// Aurora DSQL constraints:
+//   - No sequences/serial → use @default(cuid())
+//   - No CREATE TYPE (enums) → use String + app-level validation
+//   - No synchronous CREATE INDEX → manual CREATE INDEX ASYNC after db push
+//   - No Prisma @relation → plain String foreign keys, app-level joins
+//   - Use `npm run dsql:push` (not prisma migrate dev)
 
 generator client {
   provider      = "prisma-client-js"
@@ -16,13 +23,182 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Aurora DSQL: unique indexes must be created manually with CREATE INDEX ASYNC.
-// After running `prisma db push`, execute:
-//   CREATE INDEX ASYNC idx_user_email ON "User" (email);
+// ═══════════════════════════════════════════════════════════
+// IDENTITY
+// ═══════════════════════════════════════════════════════════
+
+// User — authentication identity (1:1 with Cognito sub).
+// A user can be a member of multiple companies.
 model User {
-  id        String   @id @default(cuid())
-  email     String
-  name      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String   @id(map: "User_pkey") @default(cuid())
+  cognitoSub   String       // Cognito user pool `sub` claim (CREATE INDEX ASYNC — unique)
+  email        String       // from Cognito, denormalized for queries
+  firstName    String
+  lastName     String
+  phone        String?
+  avatarUrl    String?
+  isAdmin      Boolean  @default(false)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("app_user")
 }
+
+// ═══════════════════════════════════════════════════════════
+// MULTI-TENANCY
+// ═══════════════════════════════════════════════════════════
+
+// Company — the top-level tenant. All operational data is scoped to a company.
+model Company {
+  id           String   @id(map: "Company_pkey") @default(cuid())
+  name         String
+  code         String       // short invite code (6-char, CREATE INDEX ASYNC — unique)
+  address      String?
+  timezone     String   @default("Asia/Manila")
+  logoUrl      String?
+  settings     String?      // JSON string for flexible config (shift hours, grace period, etc.)
+  isActive     Boolean  @default(true)
+  ownerId      String       // -> User.id
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("company")
+}
+
+// CompanyMember — a user's membership in a company.
+// This is the central identity within a tenant (all DTR data references memberId).
+// Role: OWNER | ADMIN | MANAGER | MEMBER
+// MemberType: EMPLOYEE | STUDENT | CONTRACTOR
+// Status: ACTIVE | PENDING | INACTIVE | SUSPENDED
+model CompanyMember {
+  id           String   @id(map: "CompanyMember_pkey") @default(cuid())
+  companyId    String       // -> Company.id
+  userId       String       // -> User.id
+  role         String   @default("MEMBER")
+  memberType   String   @default("EMPLOYEE")
+  employeeId   String?      // company-issued employee/student ID
+  department   String?
+  position     String?
+  status       String   @default("ACTIVE")
+  joinedAt     DateTime @default(now())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("company_member")
+}
+
+// CompanyInvite — invitation or self-registration token for a company.
+model CompanyInvite {
+  id           String    @id(map: "CompanyInvite_pkey") @default(cuid())
+  companyId    String       // -> Company.id
+  email        String?      // if inviting a specific email
+  role         String    @default("MEMBER")
+  memberType   String    @default("EMPLOYEE")
+  token        String       // unique invite token (CREATE INDEX ASYNC — unique)
+  expiresAt    DateTime
+  acceptedAt   DateTime?
+  acceptedBy   String?      // -> User.id who accepted
+  createdAt    DateTime  @default(now())
+
+  @@map("company_invite")
+}
+
+// ═══════════════════════════════════════════════════════════
+// BIOMETRIC DEVICES
+// ═══════════════════════════════════════════════════════════
+
+// BiometricDevice — a physical device registered to a company.
+// Each device gets its own API key (x-device-key) for webhook authentication.
+// DeviceType: FINGERPRINT | FACIAL_RECOGNITION | IRIS | RFID
+model BiometricDevice {
+  id            String    @id(map: "BiometricDevice_pkey") @default(cuid())
+  companyId     String       // -> Company.id
+  name          String       // human-readable label ("Lobby Scanner", "Gate 2")
+  serialNumber  String?
+  deviceType    String       // FINGERPRINT | FACIAL_RECOGNITION | IRIS | RFID
+  location      String?      // physical location description
+  apiKey        String       // device-specific API key for webhook auth (CREATE INDEX ASYNC — unique)
+  isActive      Boolean   @default(true)
+  lastHeartbeat DateTime?
+  metadata      String?      // JSON string for device-specific config
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@map("biometric_device")
+}
+
+// ═══════════════════════════════════════════════════════════
+// ATTENDANCE & TIME TRACKING
+// ═══════════════════════════════════════════════════════════
+
+// Attendance — one row per member per day. The daily summary.
+// Status: PRESENT | ABSENT | LATE | HALF_DAY | ON_LEAVE
+model Attendance {
+  id            String    @id(map: "Attendance_pkey") @default(cuid())
+  companyId     String       // -> Company.id
+  memberId      String       // -> CompanyMember.id
+  date          DateTime     // calendar date (YYYY-MM-DD, time zeroed)
+  status        String    @default("PRESENT")
+  firstClockIn  DateTime?
+  lastClockOut  DateTime?
+  totalMinutes  Int?         // computed total working time
+  overtimeMin   Int?         // computed overtime (based on company shift settings)
+  remarks       String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@map("attendance")
+}
+
+// ClockEvent — every individual clock action. Granular audit trail.
+// EventType: CLOCK_IN | CLOCK_OUT | BREAK_START | BREAK_END
+// Source: BIOMETRIC | FACIAL | MANUAL | WEB | MOBILE
+model ClockEvent {
+  id            String    @id(map: "ClockEvent_pkey") @default(cuid())
+  companyId     String       // -> Company.id
+  memberId      String       // -> CompanyMember.id
+  attendanceId  String?      // -> Attendance.id (linked after upsert)
+  eventType     String       // CLOCK_IN | CLOCK_OUT | BREAK_START | BREAK_END
+  timestamp     DateTime
+  source        String       // BIOMETRIC | FACIAL | MANUAL | WEB | MOBILE
+  deviceId      String?      // -> BiometricDevice.id (if from hardware)
+  locationLat   Float?       // GPS latitude (mobile clock-in)
+  locationLng   Float?       // GPS longitude
+  photoUrl      String?      // selfie/facial recognition photo URL
+  remarks       String?
+  createdAt     DateTime  @default(now())
+
+  @@map("clock_event")
+}
+
+// ═══════════════════════════════════════════════════════════
+// INDEXES (run manually after `npm run dsql:push`)
+// ═══════════════════════════════════════════════════════════
+//
+// -- Identity
+// CREATE INDEX ASYNC idx_user_cognitosub ON "app_user" ("cognitoSub");
+// CREATE INDEX ASYNC idx_user_email ON "app_user" ("email");
+//
+// -- Multi-tenancy
+// CREATE INDEX ASYNC idx_company_code ON "company" ("code");
+// CREATE INDEX ASYNC idx_company_ownerid ON "company" ("ownerId");
+// CREATE INDEX ASYNC idx_member_companyid ON "company_member" ("companyId");
+// CREATE INDEX ASYNC idx_member_userid ON "company_member" ("userId");
+// CREATE INDEX ASYNC idx_member_company_user ON "company_member" ("companyId", "userId");
+// CREATE INDEX ASYNC idx_member_employeeid ON "company_member" ("companyId", "employeeId");
+// CREATE INDEX ASYNC idx_invite_token ON "company_invite" ("token");
+// CREATE INDEX ASYNC idx_invite_companyid ON "company_invite" ("companyId");
+//
+// -- Devices
+// CREATE INDEX ASYNC idx_device_apikey ON "biometric_device" ("apiKey");
+// CREATE INDEX ASYNC idx_device_companyid ON "biometric_device" ("companyId");
+//
+// -- Attendance & ClockEvents
+// CREATE INDEX ASYNC idx_attendance_company_date ON "attendance" ("companyId", "date");
+// CREATE INDEX ASYNC idx_attendance_member_date ON "attendance" ("memberId", "date");
+// CREATE INDEX ASYNC idx_clockevent_companyid ON "clock_event" ("companyId");
+// CREATE INDEX ASYNC idx_clockevent_memberid ON "clock_event" ("memberId");
+// CREATE INDEX ASYNC idx_clockevent_attendanceid ON "clock_event" ("attendanceId");
+// CREATE INDEX ASYNC idx_clockevent_deviceid ON "clock_event" ("deviceId");
+// CREATE INDEX ASYNC idx_clockevent_timestamp ON "clock_event" ("companyId", "timestamp");
