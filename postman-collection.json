@@ -49,6 +49,11 @@
       "key": "refreshTokenValue",
       "value": "",
       "type": "string"
+    },
+    {
+      "key": "recordsRequestId",
+      "value": "",
+      "type": "string"
     }
   ],
   "item": [
@@ -1048,8 +1053,135 @@
       ]
     },
     {
+      "name": "Records Requests",
+      "item": [
+        {
+          "name": "POST /companies/:companyId/records-requests (create)",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/companies/{{companyId}}/records-requests",
+              "host": ["{{baseUrl}}"],
+              "path": ["companies", "{{companyId}}", "records-requests"]
+            },
+            "header": [
+              { "key": "x-api-key", "value": "{{apiKey}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"lrn\": \"123456789012\",\n  \"studentName\": \"Juan Dela Cruz\",\n  \"gender\": \"M\",\n  \"lastSchoolYear\": \"2023-2024\",\n  \"gradeSection\": \"Grade 10 - Tuna\",\n  \"major\": \"\",\n  \"adviser\": \"Mrs. Santos\",\n  \"contactNo\": \"09171234567\",\n  \"requestorName\": \"Maria Dela Cruz\",\n  \"requestTypes\": \"SF10,DIPLOMA\",\n  \"source\": \"WALK_IN\",\n  \"remarks\": \"Needed for college enrollment\"\n}"
+            }
+          }
+        },
+        {
+          "name": "GET /companies/:companyId/records-requests (list)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/companies/{{companyId}}/records-requests",
+              "host": ["{{baseUrl}}"],
+              "path": ["companies", "{{companyId}}", "records-requests"],
+              "query": [
+                { "key": "status", "value": "PENDING", "disabled": true, "description": "PENDING, PROCESSING, READY, RELEASED, REJECTED" },
+                { "key": "source", "value": "GOOGLE_FORM", "disabled": true, "description": "GOOGLE_FORM, WEB, WALK_IN" },
+                { "key": "search", "value": "", "disabled": true, "description": "Search by student name, LRN, requestor name, grade/section" },
+                { "key": "from", "value": "2026-01-01", "disabled": true },
+                { "key": "to", "value": "2026-12-31", "disabled": true },
+                { "key": "page", "value": "1", "disabled": true },
+                { "key": "limit", "value": "50", "disabled": true }
+              ]
+            },
+            "header": [
+              { "key": "x-api-key", "value": "{{apiKey}}" }
+            ]
+          }
+        },
+        {
+          "name": "GET /companies/:companyId/records-requests/stats",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/companies/{{companyId}}/records-requests/stats",
+              "host": ["{{baseUrl}}"],
+              "path": ["companies", "{{companyId}}", "records-requests", "stats"]
+            },
+            "header": [
+              { "key": "x-api-key", "value": "{{apiKey}}" }
+            ]
+          }
+        },
+        {
+          "name": "GET /companies/:companyId/records-requests/:requestId",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/companies/{{companyId}}/records-requests/{{recordsRequestId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["companies", "{{companyId}}", "records-requests", "{{recordsRequestId}}"]
+            },
+            "header": [
+              { "key": "x-api-key", "value": "{{apiKey}}" }
+            ]
+          }
+        },
+        {
+          "name": "PUT /companies/:companyId/records-requests/:requestId (update status)",
+          "request": {
+            "method": "PUT",
+            "url": {
+              "raw": "{{baseUrl}}/companies/{{companyId}}/records-requests/{{recordsRequestId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["companies", "{{companyId}}", "records-requests", "{{recordsRequestId}}"]
+            },
+            "header": [
+              { "key": "x-api-key", "value": "{{apiKey}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"PROCESSING\",\n  \"remarks\": \"Looking up records\",\n  \"processedBy\": \"{{memberId}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "DELETE /companies/:companyId/records-requests/:requestId",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{baseUrl}}/companies/{{companyId}}/records-requests/{{recordsRequestId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["companies", "{{companyId}}", "records-requests", "{{recordsRequestId}}"]
+            },
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{bearerToken}}" }
+            ]
+          }
+        }
+      ]
+    },
+    {
       "name": "Webhooks",
       "item": [
+        {
+          "name": "POST /webhook/google-form",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/webhook/google-form",
+              "host": ["{{baseUrl}}"],
+              "path": ["webhook", "google-form"]
+            },
+            "header": [
+              { "key": "x-api-key", "value": "{{apiKey}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"companyId\": \"{{companyId}}\",\n  \"studentName\": \"Maria Santos\",\n  \"lrn\": \"987654321012\",\n  \"gender\": \"F\",\n  \"lastSchoolYear\": \"2023-2024\",\n  \"gradeSection\": \"Grade 10 - Bangus\",\n  \"adviser\": \"Mr. Reyes\",\n  \"contactNo\": \"09181234567\",\n  \"requestorName\": \"Maria Santos\",\n  \"requestTypes\": \"SF10,ENROLMENT_CERT\"\n}"
+            }
+          }
+        },
         {
           "name": "POST /webhook/biometric",
           "request": {

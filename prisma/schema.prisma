@@ -173,6 +173,41 @@ model ClockEvent {
 }
 
 // ═══════════════════════════════════════════════════════════
+// RECORDS REQUESTS (School document request tracking)
+// ═══════════════════════════════════════════════════════════
+
+// RecordsRequest — tracks requests for student documents (SF10, diplomas, etc.)
+// Submitted via Google Form webhook, walk-in, or web. Managed via Windows app or API.
+// Status: PENDING | PROCESSING | READY | RELEASED | REJECTED
+// Source: GOOGLE_FORM | WEB | WALK_IN
+model RecordsRequest {
+  id              String    @id(map: "RecordsRequest_pkey") @default(cuid())
+  companyId       String       // -> Company.id (tenant scope)
+  lrn             String?      // Learner Reference Number
+  studentName     String
+  gender          String?      // M | F
+  lastSchoolYear  String?      // e.g. "2023-2024"
+  gradeSection    String?      // e.g. "Grade 10 - Tuna"
+  major           String?
+  adviser         String?
+  contactNo       String?
+  requestorName   String?      // person making the request (may differ from student)
+  requestTypes    String       // comma-separated: SF10,ENROLMENT_CERT,DIPLOMA,CAV,ENG_INST,CERT_OF_GRAD,OTHERS
+  otherRequest    String?      // free-text if OTHERS is selected
+  status          String    @default("PENDING")
+  remarks         String?
+  source          String    @default("WEB")
+  processedBy     String?      // -> CompanyMember.id (staff who handled it)
+  submittedAt     DateTime  @default(now())
+  processedAt     DateTime?
+  releasedAt      DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@map("records_request")
+}
+
+// ═══════════════════════════════════════════════════════════
 // INDEXES (run manually after `npm run dsql:push`)
 // ═══════════════════════════════════════════════════════════
 //
@@ -202,3 +237,9 @@ model ClockEvent {
 // CREATE INDEX ASYNC idx_clockevent_attendanceid ON "clock_event" ("attendanceId");
 // CREATE INDEX ASYNC idx_clockevent_deviceid ON "clock_event" ("deviceId");
 // CREATE INDEX ASYNC idx_clockevent_timestamp ON "clock_event" ("companyId", "timestamp");
+//
+// -- Records Requests
+// CREATE INDEX ASYNC idx_recreq_companyid ON "records_request" ("companyId");
+// CREATE INDEX ASYNC idx_recreq_status ON "records_request" ("companyId", "status");
+// CREATE INDEX ASYNC idx_recreq_lrn ON "records_request" ("companyId", "lrn");
+// CREATE INDEX ASYNC idx_recreq_submitted ON "records_request" ("companyId", "submittedAt");

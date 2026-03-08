@@ -17,7 +17,8 @@ export function getOpenApiSpec(baseUrl?: string) {
       { name: "Members", description: "Company member management (roles, status, approval)" },
       { name: "Attendance", description: "Clock in/out, attendance records, daily dashboard" },
       { name: "Devices", description: "Biometric device registration and management" },
-      { name: "Webhooks", description: "Biometric device webhook endpoints" },
+      { name: "Records Requests", description: "School document request tracking (SF10, diplomas, enrolment certs, etc.)" },
+      { name: "Webhooks", description: "Biometric device and Google Form webhook endpoints" },
       { name: "Admin", description: "Platform admin and company admin operations (requires isAdmin or OWNER/ADMIN role)" },
     ],
     components: {
@@ -151,6 +152,33 @@ export function getOpenApiSpec(baseUrl?: string) {
             isActive: { type: "boolean" },
             lastHeartbeat: { type: "string", format: "date-time", nullable: true },
             metadata: { type: "string", nullable: true },
+            createdAt: { type: "string", format: "date-time" },
+            updatedAt: { type: "string", format: "date-time" },
+          },
+        },
+        RecordsRequest: {
+          type: "object",
+          properties: {
+            id: { type: "string" },
+            companyId: { type: "string" },
+            lrn: { type: "string", nullable: true, description: "Learner Reference Number" },
+            studentName: { type: "string" },
+            gender: { type: "string", nullable: true, enum: ["M", "F"] },
+            lastSchoolYear: { type: "string", nullable: true, description: "e.g. 2023-2024" },
+            gradeSection: { type: "string", nullable: true },
+            major: { type: "string", nullable: true },
+            adviser: { type: "string", nullable: true },
+            contactNo: { type: "string", nullable: true },
+            requestorName: { type: "string", nullable: true, description: "Person making the request" },
+            requestTypes: { type: "string", description: "Comma-separated: SF10,ENROLMENT_CERT,DIPLOMA,CAV,ENG_INST,CERT_OF_GRAD,OTHERS" },
+            otherRequest: { type: "string", nullable: true },
+            status: { type: "string", enum: ["PENDING", "PROCESSING", "READY", "RELEASED", "REJECTED"] },
+            remarks: { type: "string", nullable: true },
+            source: { type: "string", enum: ["GOOGLE_FORM", "WEB", "WALK_IN"] },
+            processedBy: { type: "string", nullable: true },
+            submittedAt: { type: "string", format: "date-time" },
+            processedAt: { type: "string", format: "date-time", nullable: true },
+            releasedAt: { type: "string", format: "date-time", nullable: true },
             createdAt: { type: "string", format: "date-time" },
             updatedAt: { type: "string", format: "date-time" },
           },
@@ -795,7 +823,162 @@ export function getOpenApiSpec(baseUrl?: string) {
         },
       },
 
+      // ─── Records Requests ────────────────────────────
+      "/companies/{companyId}/records-requests": {
+        get: {
+          tags: ["Records Requests"],
+          summary: "List records requests",
+          description: "Returns paginated list of document requests for a company. Supports filtering by status, source, date range, and full-text search.",
+          parameters: [
+            { name: "companyId", in: "path", required: true, schema: { type: "string" } },
+            { name: "status", in: "query", schema: { type: "string", enum: ["PENDING", "PROCESSING", "READY", "RELEASED", "REJECTED"] } },
+            { name: "source", in: "query", schema: { type: "string", enum: ["GOOGLE_FORM", "WEB", "WALK_IN"] } },
+            { name: "search", in: "query", schema: { type: "string" }, description: "Search by student name, LRN, requestor name, or grade/section" },
+            { name: "from", in: "query", schema: { type: "string", format: "date" }, description: "Start date (YYYY-MM-DD)" },
+            { name: "to", in: "query", schema: { type: "string", format: "date" }, description: "End date (YYYY-MM-DD)" },
+            { name: "page", in: "query", schema: { type: "string" }, description: "Page number (default: 1)" },
+            { name: "limit", in: "query", schema: { type: "string" }, description: "Items per page (default: 50, max: 200)" },
+          ],
+          responses: {
+            "200": {
+              description: "Paginated list of records requests",
+              content: { "application/json": { schema: { type: "object", properties: {
+                requests: { type: "array", items: { $ref: "#/components/schemas/RecordsRequest" } },
+                total: { type: "integer" },
+                page: { type: "integer" },
+                limit: { type: "integer" },
+              } } } },
+            },
+          },
+        },
+        post: {
+          tags: ["Records Requests"],
+          summary: "Create a records request",
+          description: "Manually create a document request (walk-in or web submission).",
+          parameters: [{ name: "companyId", in: "path", required: true, schema: { type: "string" } }],
+          requestBody: {
+            required: true,
+            content: { "application/json": { schema: { type: "object", required: ["studentName", "requestTypes"], properties: {
+              lrn: { type: "string", example: "123456789012" },
+              studentName: { type: "string", example: "Juan Dela Cruz" },
+              gender: { type: "string", enum: ["M", "F"] },
+              lastSchoolYear: { type: "string", example: "2023-2024" },
+              gradeSection: { type: "string", example: "Grade 10 - Tuna" },
+              major: { type: "string" },
+              adviser: { type: "string" },
+              contactNo: { type: "string", example: "09171234567" },
+              requestorName: { type: "string", description: "Person making the request (if different from student)" },
+              requestTypes: { type: "string", example: "SF10,DIPLOMA", description: "Comma-separated: SF10,ENROLMENT_CERT,DIPLOMA,CAV,ENG_INST,CERT_OF_GRAD,OTHERS" },
+              otherRequest: { type: "string", description: "Details if OTHERS is included in requestTypes" },
+              source: { type: "string", enum: ["WEB", "WALK_IN"], default: "WEB" },
+              remarks: { type: "string" },
+            } } } },
+          },
+          responses: {
+            "201": { description: "Request created", content: { "application/json": { schema: { $ref: "#/components/schemas/RecordsRequest" } } } },
+            "400": { description: "Missing studentName or requestTypes" },
+          },
+        },
+      },
+      "/companies/{companyId}/records-requests/stats": {
+        get: {
+          tags: ["Records Requests"],
+          summary: "Get records request statistics",
+          description: "Returns count of requests by status for the dashboard.",
+          parameters: [{ name: "companyId", in: "path", required: true, schema: { type: "string" } }],
+          responses: {
+            "200": {
+              description: "Request counts by status",
+              content: { "application/json": { schema: { type: "object", properties: {
+                total: { type: "integer" },
+                pending: { type: "integer" },
+                processing: { type: "integer" },
+                ready: { type: "integer" },
+                released: { type: "integer" },
+                rejected: { type: "integer" },
+              } } } },
+            },
+          },
+        },
+      },
+      "/companies/{companyId}/records-requests/{requestId}": {
+        get: {
+          tags: ["Records Requests"],
+          summary: "Get a single records request",
+          parameters: [
+            { name: "companyId", in: "path", required: true, schema: { type: "string" } },
+            { name: "requestId", in: "path", required: true, schema: { type: "string" } },
+          ],
+          responses: {
+            "200": { description: "Records request details", content: { "application/json": { schema: { $ref: "#/components/schemas/RecordsRequest" } } } },
+            "404": { description: "Request not found" },
+          },
+        },
+        put: {
+          tags: ["Records Requests"],
+          summary: "Update a records request (status, remarks)",
+          description: "Update the status or add remarks. Automatically sets processedAt when moving to PROCESSING/READY, and releasedAt when RELEASED.",
+          parameters: [
+            { name: "companyId", in: "path", required: true, schema: { type: "string" } },
+            { name: "requestId", in: "path", required: true, schema: { type: "string" } },
+          ],
+          requestBody: {
+            content: { "application/json": { schema: { type: "object", properties: {
+              status: { type: "string", enum: ["PENDING", "PROCESSING", "READY", "RELEASED", "REJECTED"] },
+              remarks: { type: "string" },
+              processedBy: { type: "string", description: "CompanyMember ID of the staff handling it" },
+            } } } },
+          },
+          responses: {
+            "200": { description: "Updated request", content: { "application/json": { schema: { $ref: "#/components/schemas/RecordsRequest" } } } },
+            "400": { description: "Invalid status" },
+          },
+        },
+        delete: {
+          tags: ["Records Requests"],
+          summary: "Delete a records request (OWNER/ADMIN)",
+          parameters: [
+            { name: "companyId", in: "path", required: true, schema: { type: "string" } },
+            { name: "requestId", in: "path", required: true, schema: { type: "string" } },
+          ],
+          responses: {
+            "200": { description: "Deleted", content: { "application/json": { schema: { type: "object", properties: { deleted: { type: "boolean" } } } } } },
+            "403": { description: "Insufficient role" },
+          },
+        },
+      },
+
       // ─── Webhooks ────────────────────────────────────
+      "/webhook/google-form": {
+        post: {
+          tags: ["Webhooks"],
+          summary: "Google Form submission webhook",
+          description: "Receives records request submissions from Google Forms via Apps Script. Authenticated via `x-api-key` header. The `companyId` must be included in the payload body.",
+          security: [{ ApiKeyAuth: [] }],
+          requestBody: {
+            required: true,
+            content: { "application/json": { schema: { type: "object", required: ["companyId", "studentName"], properties: {
+              companyId: { type: "string", description: "Target company ID" },
+              studentName: { type: "string", example: "Juan Dela Cruz" },
+              lrn: { type: "string", example: "123456789012" },
+              gender: { type: "string", example: "M" },
+              lastSchoolYear: { type: "string", example: "2023-2024" },
+              gradeSection: { type: "string", example: "Grade 10 - Tuna" },
+              major: { type: "string" },
+              adviser: { type: "string" },
+              contactNo: { type: "string", example: "09171234567" },
+              requestorName: { type: "string" },
+              requestTypes: { type: "string", example: "SF10,DIPLOMA", description: "Comma-separated or array" },
+              otherRequest: { type: "string" },
+            } } } },
+          },
+          responses: {
+            "201": { description: "Request created from form submission", content: { "application/json": { schema: { $ref: "#/components/schemas/RecordsRequest" } } } },
+            "400": { description: "Missing companyId or studentName" },
+            "401": { description: "Invalid API key" },
+          },
+        },
+      },
       "/webhook/biometric": {
         post: {
           tags: ["Webhooks"],

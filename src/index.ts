@@ -22,6 +22,11 @@ import { listMembers, getMember, updateMember, approveMember, resolveMember, VAL
 import { clockIn, clockOut, getAttendance, getDailyDashboard, getClockEvents, VALID_EVENT_TYPES, VALID_SOURCES } from "./routes/attendance";
 import { registerDevice, listDevices, updateDevice, authenticateDevice, resolveMemberByEmployeeId, VALID_DEVICE_TYPES } from "./routes/devices";
 import {
+  createRecordsRequest, listRecordsRequests, getRecordsRequest,
+  updateRecordsRequest, deleteRecordsRequest, getRecordsStats,
+  parseGoogleFormPayload, VALID_STATUSES as VALID_RR_STATUSES,
+} from "./routes/records-requests";
+import {
   adminListUsers, adminGetUser, adminUpdateUser,
   adminListCompanies, adminAddUserToCompany,
   requirePlatformAdmin, requireCompanyAdminOrPlatformAdmin,
@@ -58,6 +63,11 @@ export async function handler(
     const baseUrl = host ? `${proto}://${host}` : "";
     const spec = getOpenApiSpec(baseUrl);
     return { statusCode: 200, headers: { "content-type": "application/json", ...cors }, body: JSON.stringify(spec) };
+  }
+
+  // ─── Google Form webhook (API key auth) ──────────────
+  if (path === "/webhook/google-form" && method === "POST") {
+    return handleGoogleFormWebhook(event, cors);
   }
 
   // ─── Biometric device webhook (device-key auth) ─────
@@ -328,6 +338,57 @@ async function route(
     return json(200, await updateDevice(deviceMatch[2], body ?? {}), cors);
   }
 
+  // ─── Records Requests ─────────────────────────────────
+  // /companies/:companyId/records-requests
+  const rrListMatch = path.match(/^\/companies\/([^/]+)\/records-requests$/);
+  if (rrListMatch) {
+    const companyId = rrListMatch[1];
+    if (method === "GET") {
+      return json(200, await listRecordsRequests(companyId, {
+        status: qs.status, source: qs.source, search: qs.search,
+        from: qs.from, to: qs.to, page: qs.page, limit: qs.limit,
+      }), cors);
+    }
+    if (method === "POST") {
+      if (!body?.studentName || !body?.requestTypes) {
+        return json(400, { error: "studentName and requestTypes are required" }, cors);
+      }
+      return json(201, await createRecordsRequest(companyId, body as {
+        studentName: string; requestTypes: string;
+        lrn?: string; gender?: string; lastSchoolYear?: string;
+        gradeSection?: string; major?: string; adviser?: string;
+        contactNo?: string; requestorName?: string; otherRequest?: string;
+        source?: string; remarks?: string;
+      }), cors);
+    }
+  }
+
+  // /companies/:companyId/records-requests/stats
+  const rrStatsMatch = path.match(/^\/companies\/([^/]+)\/records-requests\/stats$/);
+  if (rrStatsMatch && method === "GET") {
+    return json(200, await getRecordsStats(rrStatsMatch[1]), cors);
+  }
+
+  // /companies/:companyId/records-requests/:id
+  const rrMatch = path.match(/^\/companies\/([^/]+)\/records-requests\/([^/]+)$/);
+  if (rrMatch) {
+    const requestId = rrMatch[2];
+    if (method === "GET") {
+      const rr = await getRecordsRequest(requestId);
+      return rr ? json(200, rr, cors) : json(404, { error: "Records request not found" }, cors);
+    }
+    if (method === "PUT") {
+      if (body?.status && !VALID_RR_STATUSES.includes(body.status as typeof VALID_RR_STATUSES[number])) {
+        return json(400, { error: `status must be: ${VALID_RR_STATUSES.join(", ")}` }, cors);
+      }
+      return json(200, await updateRecordsRequest(requestId, body ?? {}), cors);
+    }
+    if (method === "DELETE") {
+      await requireRole(auth, rrMatch[1], ["OWNER", "ADMIN"]);
+      return json(200, await deleteRecordsRequest(requestId), cors);
+    }
+  }
+
   // ─── Admin: Platform Users ───────────────────────────
   if (path === "/admin/users" && method === "GET") {
     requirePlatformAdmin(auth);
@@ -378,6 +439,41 @@ async function route(
   }
 
   return json(404, { error: "Not Found", path, method }, cors);
+}
+
+// ═══════════════════════════════════════════════════════════
+// GOOGLE FORM WEBHOOK
+// ═══════════════════════════════════════════════════════════
+
+async function handleGoogleFormWebhook(
+  event: APIGatewayProxyEventV2,
+  cors: Record<string, string>
+): Promise<APIGatewayProxyResultV2> {
+  const requestKey = event.headers?.["x-api-key"] ?? "";
+  if (!requestKey) return json(401, { error: "x-api-key header required" }, cors);
+
+  const apiKeysEnv = process.env.API_KEYS ?? "";
+  const validKeys = apiKeysEnv.split(",").map((k) => k.trim()).filter(Boolean);
+  if (!validKeys.includes(requestKey)) {
+    return json(401, { error: "Invalid API key" }, cors);
+  }
+
+  const body = parseBody(event);
+  if (!body?.companyId) {
+    return json(400, { error: "companyId is required" }, cors);
+  }
+
+  const parsed = parseGoogleFormPayload(body);
+  if (!parsed) {
+    return json(400, { error: "studentName is required in form data" }, cors);
+  }
+
+  const record = await createRecordsRequest(body.companyId as string, {
+    ...parsed,
+    source: "GOOGLE_FORM",
+  });
+
+  return json(201, record, cors);
 }
 
 // ═══════════════════════════════════════════════════════════
