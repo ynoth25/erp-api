@@ -1,0 +1,47 @@
+name: Deploy
+
+on:
+  push:
+    branches: [master]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: aws-actions/setup-sam@v2
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-northeast-1
+
+      - name: Build
+        run: node scripts/sam-build.mjs
+
+      - name: Deploy
+        run: |
+          sam deploy \
+            --template-file .aws-sam/build/template.yaml \
+            --stack-name erp-api \
+            --resolve-s3 \
+            --s3-prefix erp-api \
+            --region ap-northeast-1 \
+            --capabilities CAPABILITY_IAM \
+            --no-confirm-changeset \
+            --no-fail-on-empty-changeset \
+            --parameter-overrides \
+              FunctionName=erp-api \
+              DsqlHost=${{ secrets.DSQL_HOST }} \
+              DsqlRegion=ap-northeast-1 \
+              DsqlUser=admin \
+              DsqlDatabase=postgres \
+              DsqlClusterArn=${{ secrets.DSQL_CLUSTER_ARN }} \
+              ApiKeys=${{ secrets.API_KEYS }} \
+              AllowedOrigins=${{ secrets.ALLOWED_ORIGINS }}
