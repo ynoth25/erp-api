@@ -6,12 +6,11 @@
 // Biometric devices authenticate with their own API key and post clock events
 // directly via webhook.
 //
-// Aurora DSQL constraints:
-//   - No sequences/serial → use @default(cuid())
-//   - No CREATE TYPE (enums) → use String + app-level validation
-//   - No synchronous CREATE INDEX → manual CREATE INDEX ASYNC after db push
-//   - No Prisma @relation → plain String foreign keys, app-level joins
-//   - Use `npm run dsql:push` (not prisma migrate dev)
+// Aurora DSQL compatibility:
+//   - relationMode = "prisma" (DSQL has no foreign keys)
+//   - UUID IDs via gen_random_uuid() @db.Uuid (no sequences/serial)
+//   - No Prisma @relation enforcement → app-level joins
+//   - Indexes created via DSQL migration tool (CREATE INDEX ASYNC)
 
 generator client {
   provider      = "prisma-client-js"
@@ -19,20 +18,19 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider     = "postgresql"
+  url          = env("DATABASE_URL")
+  relationMode = "prisma"
 }
 
 // ═══════════════════════════════════════════════════════════
 // IDENTITY
 // ═══════════════════════════════════════════════════════════
 
-// User — authentication identity (1:1 with Cognito sub).
-// A user can be a member of multiple companies.
 model User {
-  id           String   @id(map: "User_pkey") @default(cuid())
-  cognitoSub   String       // Cognito user pool `sub` claim (CREATE INDEX ASYNC — unique)
-  email        String       // from Cognito, denormalized for queries
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  cognitoSub   String
+  email        String
   firstName    String
   lastName     String
   phone        String?
@@ -49,35 +47,29 @@ model User {
 // MULTI-TENANCY
 // ═══════════════════════════════════════════════════════════
 
-// Company — the top-level tenant. All operational data is scoped to a company.
 model Company {
-  id           String   @id(map: "Company_pkey") @default(cuid())
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name         String
-  code         String       // short invite code (6-char, CREATE INDEX ASYNC — unique)
+  code         String
   address      String?
   timezone     String   @default("Asia/Manila")
   logoUrl      String?
-  settings     String?      // JSON string for flexible config (shift hours, grace period, etc.)
+  settings     String?
   isActive     Boolean  @default(true)
-  ownerId      String       // -> User.id
+  ownerId      String   @db.Uuid
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   @@map("company")
 }
 
-// CompanyMember — a user's membership in a company.
-// This is the central identity within a tenant (all DTR data references memberId).
-// Role: OWNER | ADMIN | MANAGER | MEMBER
-// MemberType: EMPLOYEE | STUDENT | CONTRACTOR
-// Status: ACTIVE | PENDING | INACTIVE | SUSPENDED
 model CompanyMember {
-  id           String   @id(map: "CompanyMember_pkey") @default(cuid())
-  companyId    String       // -> Company.id
-  userId       String       // -> User.id
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId    String   @db.Uuid
+  userId       String   @db.Uuid
   role         String   @default("MEMBER")
   memberType   String   @default("EMPLOYEE")
-  employeeId   String?      // company-issued employee/student ID
+  employeeId   String?
   department   String?
   position     String?
   status       String   @default("ACTIVE")
@@ -88,17 +80,16 @@ model CompanyMember {
   @@map("company_member")
 }
 
-// CompanyInvite — invitation or self-registration token for a company.
 model CompanyInvite {
-  id           String    @id(map: "CompanyInvite_pkey") @default(cuid())
-  companyId    String       // -> Company.id
-  email        String?      // if inviting a specific email
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId    String    @db.Uuid
+  email        String?
   role         String    @default("MEMBER")
   memberType   String    @default("EMPLOYEE")
-  token        String       // unique invite token (CREATE INDEX ASYNC — unique)
+  token        String
   expiresAt    DateTime
   acceptedAt   DateTime?
-  acceptedBy   String?      // -> User.id who accepted
+  acceptedBy   String?   @db.Uuid
   createdAt    DateTime  @default(now())
 
   @@map("company_invite")
@@ -108,20 +99,17 @@ model CompanyInvite {
 // BIOMETRIC DEVICES
 // ═══════════════════════════════════════════════════════════
 
-// BiometricDevice — a physical device registered to a company.
-// Each device gets its own API key (x-device-key) for webhook authentication.
-// DeviceType: FINGERPRINT | FACIAL_RECOGNITION | IRIS | RFID
 model BiometricDevice {
-  id            String    @id(map: "BiometricDevice_pkey") @default(cuid())
-  companyId     String       // -> Company.id
-  name          String       // human-readable label ("Lobby Scanner", "Gate 2")
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId     String    @db.Uuid
+  name          String
   serialNumber  String?
-  deviceType    String       // FINGERPRINT | FACIAL_RECOGNITION | IRIS | RFID
-  location      String?      // physical location description
-  apiKey        String       // device-specific API key for webhook auth (CREATE INDEX ASYNC — unique)
+  deviceType    String
+  location      String?
+  apiKey        String
   isActive      Boolean   @default(true)
   lastHeartbeat DateTime?
-  metadata      String?      // JSON string for device-specific config
+  metadata      String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -132,18 +120,16 @@ model BiometricDevice {
 // ATTENDANCE & TIME TRACKING
 // ═══════════════════════════════════════════════════════════
 
-// Attendance — one row per member per day. The daily summary.
-// Status: PRESENT | ABSENT | LATE | HALF_DAY | ON_LEAVE
 model Attendance {
-  id            String    @id(map: "Attendance_pkey") @default(cuid())
-  companyId     String       // -> Company.id
-  memberId      String       // -> CompanyMember.id
-  date          DateTime     // calendar date (YYYY-MM-DD, time zeroed)
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId     String    @db.Uuid
+  memberId      String    @db.Uuid
+  date          DateTime
   status        String    @default("PRESENT")
   firstClockIn  DateTime?
   lastClockOut  DateTime?
-  totalMinutes  Int?         // computed total working time
-  overtimeMin   Int?         // computed overtime (based on company shift settings)
+  totalMinutes  Int?
+  overtimeMin   Int?
   remarks       String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -151,21 +137,18 @@ model Attendance {
   @@map("attendance")
 }
 
-// ClockEvent — every individual clock action. Granular audit trail.
-// EventType: CLOCK_IN | CLOCK_OUT | BREAK_START | BREAK_END
-// Source: BIOMETRIC | FACIAL | MANUAL | WEB | MOBILE
 model ClockEvent {
-  id            String    @id(map: "ClockEvent_pkey") @default(cuid())
-  companyId     String       // -> Company.id
-  memberId      String       // -> CompanyMember.id
-  attendanceId  String?      // -> Attendance.id (linked after upsert)
-  eventType     String       // CLOCK_IN | CLOCK_OUT | BREAK_START | BREAK_END
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId     String    @db.Uuid
+  memberId      String    @db.Uuid
+  attendanceId  String?   @db.Uuid
+  eventType     String
   timestamp     DateTime
-  source        String       // BIOMETRIC | FACIAL | MANUAL | WEB | MOBILE
-  deviceId      String?      // -> BiometricDevice.id (if from hardware)
-  locationLat   Float?       // GPS latitude (mobile clock-in)
-  locationLng   Float?       // GPS longitude
-  photoUrl      String?      // selfie/facial recognition photo URL
+  source        String
+  deviceId      String?   @db.Uuid
+  locationLat   Float?
+  locationLng   Float?
+  photoUrl      String?
   remarks       String?
   createdAt     DateTime  @default(now())
 
@@ -176,28 +159,24 @@ model ClockEvent {
 // RECORDS REQUESTS (School document request tracking)
 // ═══════════════════════════════════════════════════════════
 
-// RecordsRequest — tracks requests for student documents (SF10, diplomas, etc.)
-// Submitted via Google Form webhook, walk-in, or web. Managed via Windows app or API.
-// Status: PENDING | PROCESSING | READY | RELEASED | REJECTED
-// Source: GOOGLE_FORM | WEB | WALK_IN
 model RecordsRequest {
-  id              String    @id(map: "RecordsRequest_pkey") @default(cuid())
-  companyId       String       // -> Company.id (tenant scope)
-  lrn             String?      // Learner Reference Number
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId       String    @db.Uuid
+  lrn             String?
   studentName     String
-  gender          String?      // M | F
-  lastSchoolYear  String?      // e.g. "2023-2024"
-  gradeSection    String?      // e.g. "Grade 10 - Tuna"
+  gender          String?
+  lastSchoolYear  String?
+  gradeSection    String?
   major           String?
   adviser         String?
   contactNo       String?
-  requestorName   String?      // person making the request (may differ from student)
-  requestTypes    String       // comma-separated: SF10,ENROLMENT_CERT,DIPLOMA,CAV,ENG_INST,CERT_OF_GRAD,OTHERS
-  otherRequest    String?      // free-text if OTHERS is selected
+  requestorName   String?
+  requestTypes    String
+  otherRequest    String?
   status          String    @default("PENDING")
   remarks         String?
   source          String    @default("WEB")
-  processedBy     String?      // -> CompanyMember.id (staff who handled it)
+  processedBy     String?   @db.Uuid
   submittedAt     DateTime  @default(now())
   processedAt     DateTime?
   releasedAt      DateTime?
@@ -206,40 +185,3 @@ model RecordsRequest {
 
   @@map("records_request")
 }
-
-// ═══════════════════════════════════════════════════════════
-// INDEXES (run manually after `npm run dsql:push`)
-// ═══════════════════════════════════════════════════════════
-//
-// -- Identity
-// CREATE INDEX ASYNC idx_user_cognitosub ON "app_user" ("cognitoSub");
-// CREATE INDEX ASYNC idx_user_email ON "app_user" ("email");
-//
-// -- Multi-tenancy
-// CREATE INDEX ASYNC idx_company_code ON "company" ("code");
-// CREATE INDEX ASYNC idx_company_ownerid ON "company" ("ownerId");
-// CREATE INDEX ASYNC idx_member_companyid ON "company_member" ("companyId");
-// CREATE INDEX ASYNC idx_member_userid ON "company_member" ("userId");
-// CREATE INDEX ASYNC idx_member_company_user ON "company_member" ("companyId", "userId");
-// CREATE INDEX ASYNC idx_member_employeeid ON "company_member" ("companyId", "employeeId");
-// CREATE INDEX ASYNC idx_invite_token ON "company_invite" ("token");
-// CREATE INDEX ASYNC idx_invite_companyid ON "company_invite" ("companyId");
-//
-// -- Devices
-// CREATE INDEX ASYNC idx_device_apikey ON "biometric_device" ("apiKey");
-// CREATE INDEX ASYNC idx_device_companyid ON "biometric_device" ("companyId");
-//
-// -- Attendance & ClockEvents
-// CREATE INDEX ASYNC idx_attendance_company_date ON "attendance" ("companyId", "date");
-// CREATE INDEX ASYNC idx_attendance_member_date ON "attendance" ("memberId", "date");
-// CREATE INDEX ASYNC idx_clockevent_companyid ON "clock_event" ("companyId");
-// CREATE INDEX ASYNC idx_clockevent_memberid ON "clock_event" ("memberId");
-// CREATE INDEX ASYNC idx_clockevent_attendanceid ON "clock_event" ("attendanceId");
-// CREATE INDEX ASYNC idx_clockevent_deviceid ON "clock_event" ("deviceId");
-// CREATE INDEX ASYNC idx_clockevent_timestamp ON "clock_event" ("companyId", "timestamp");
-//
-// -- Records Requests
-// CREATE INDEX ASYNC idx_recreq_companyid ON "records_request" ("companyId");
-// CREATE INDEX ASYNC idx_recreq_status ON "records_request" ("companyId", "status");
-// CREATE INDEX ASYNC idx_recreq_lrn ON "records_request" ("companyId", "lrn");
-// CREATE INDEX ASYNC idx_recreq_submitted ON "records_request" ("companyId", "submittedAt");

@@ -25,13 +25,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run safe DB migrations
+      - name: Run DB migrations
         env:
           DSQL_HOST: ${{ secrets.DSQL_HOST }}
           DSQL_REGION: ap-northeast-1
           DSQL_USER: admin
           DSQL_DATABASE: postgres
-        run: npx tsx scripts/migrate-safe.ts
+        run: npx tsx scripts/migrate-safe.ts --force-reset
 
       - name: Build
         run: node scripts/sam-build.mjs
