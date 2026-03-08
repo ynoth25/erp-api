@@ -128,6 +128,18 @@ Resources:
                 - dsql:DbConnect
                 - dsql:DbConnectAdmin
               Resource: !Ref DsqlClusterArn
+            - Effect: Allow
+              Action:
+                - cognito-idp:SignUp
+                - cognito-idp:ConfirmSignUp
+                - cognito-idp:ResendConfirmationCode
+                - cognito-idp:InitiateAuth
+                - cognito-idp:ForgotPassword
+                - cognito-idp:ConfirmForgotPassword
+                - cognito-idp:ChangePassword
+                - cognito-idp:AdminCreateUser
+                - cognito-idp:AdminGetUser
+              Resource: !GetAtt UserPool.Arn
       FunctionUrlConfig:
         AuthType: NONE
         InvokeMode: BUFFERED

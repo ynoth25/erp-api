@@ -12,6 +12,10 @@ import { getOpenApiSpec } from "./docs/openapi";
 import { getSwaggerHtml } from "./docs/swagger-html";
 
 // Routes
+import {
+  signUp, confirmSignUp, resendConfirmation, signIn,
+  refreshToken, forgotPassword, confirmForgotPassword, changePassword,
+} from "./routes/cognito-auth";
 import { registerUser, getProfile, updateProfile } from "./routes/users";
 import { createCompany, getCompany, updateCompany, listUserCompanies, joinByCode, regenerateCode } from "./routes/companies";
 import { listMembers, getMember, updateMember, approveMember, resolveMember, VALID_ROLES, VALID_MEMBER_TYPES, VALID_MEMBER_STATUSES } from "./routes/members";
@@ -59,6 +63,12 @@ export async function handler(
   // ─── Biometric device webhook (device-key auth) ─────
   if (path === "/webhook/biometric" && method === "POST") {
     return handleBiometricWebhook(event, cors);
+  }
+
+  // ─── Public auth routes (no token required) ────────
+  if (path.startsWith("/auth/") && method === "POST") {
+    const publicAuthResult = await handlePublicAuth(path, parseBody(event), event, cors);
+    if (publicAuthResult) return publicAuthResult;
   }
 
   // ─── Auth check ─────────────────────────────────────
@@ -368,6 +378,97 @@ async function route(
   }
 
   return json(404, { error: "Not Found", path, method }, cors);
+}
+
+// ═══════════════════════════════════════════════════════════
+// PUBLIC AUTH HANDLER (no token required)
+// ═══════════════════════════════════════════════════════════
+
+async function handlePublicAuth(
+  path: string,
+  body: Record<string, unknown> | null,
+  event: APIGatewayProxyEventV2,
+  cors: Record<string, string>
+): Promise<APIGatewayProxyResultV2 | null> {
+  try {
+    if (path === "/auth/signup") {
+      if (!body?.email || !body?.password || !body?.firstName || !body?.lastName) {
+        return json(400, { error: "email, password, firstName, and lastName are required" }, cors);
+      }
+      const result = await signUp(body as { email: string; password: string; firstName: string; lastName: string; phone?: string });
+      return json(201, result, cors);
+    }
+
+    if (path === "/auth/confirm") {
+      if (!body?.email || !body?.code) {
+        return json(400, { error: "email and code are required" }, cors);
+      }
+      return json(200, await confirmSignUp(body as { email: string; code: string }), cors);
+    }
+
+    if (path === "/auth/resend-code") {
+      if (!body?.email) return json(400, { error: "email is required" }, cors);
+      return json(200, await resendConfirmation(body as { email: string }), cors);
+    }
+
+    if (path === "/auth/login") {
+      if (!body?.email || !body?.password) {
+        return json(400, { error: "email and password are required" }, cors);
+      }
+      const result = await signIn(body as { email: string; password: string; firstName?: string; lastName?: string });
+      return json(200, result, cors);
+    }
+
+    if (path === "/auth/refresh") {
+      if (!body?.refreshToken) return json(400, { error: "refreshToken is required" }, cors);
+      return json(200, await refreshToken(body as { refreshToken: string }), cors);
+    }
+
+    if (path === "/auth/forgot-password") {
+      if (!body?.email) return json(400, { error: "email is required" }, cors);
+      return json(200, await forgotPassword(body as { email: string }), cors);
+    }
+
+    if (path === "/auth/confirm-forgot-password") {
+      if (!body?.email || !body?.code || !body?.newPassword) {
+        return json(400, { error: "email, code, and newPassword are required" }, cors);
+      }
+      return json(200, await confirmForgotPassword(body as { email: string; code: string; newPassword: string }), cors);
+    }
+
+    if (path === "/auth/change-password") {
+      const authHeader = event.headers?.["authorization"] ?? "";
+      if (!authHeader.startsWith("Bearer ")) {
+        return json(401, { error: "Bearer token required" }, cors);
+      }
+      if (!body?.previousPassword || !body?.newPassword) {
+        return json(400, { error: "previousPassword and newPassword are required" }, cors);
+      }
+      return json(200, await changePassword({
+        accessToken: authHeader.slice(7),
+        previousPassword: body.previousPassword as string,
+        newPassword: body.newPassword as string,
+      }), cors);
+    }
+
+    return null;
+  } catch (err: any) {
+    const code = err.name === "UsernameExistsException" ? 409
+      : err.name === "UserNotConfirmedException" ? 403
+      : err.name === "NotAuthorizedException" ? 401
+      : err.name === "CodeMismatchException" ? 400
+      : err.name === "ExpiredCodeException" ? 400
+      : err.name === "InvalidPasswordException" ? 400
+      : err.name === "TooManyRequestsException" ? 429
+      : err.name === "LimitExceededException" ? 429
+      : err.name === "UserNotFoundException" ? 404
+      : 500;
+
+    return json(code, {
+      error: err.name ?? "AuthError",
+      message: err.message ?? String(err),
+    }, cors);
+  }
 }
 
 // ═══════════════════════════════════════════════════════════

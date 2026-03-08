@@ -11,7 +11,8 @@ export function getOpenApiSpec(baseUrl?: string) {
     servers: server ? [{ url: server }] : [],
     tags: [
       { name: "Health", description: "Service health and connectivity checks" },
-      { name: "Auth", description: "User registration and profile management (Cognito-linked)" },
+      { name: "Auth", description: "Sign up, sign in, password management (Cognito)" },
+      { name: "User", description: "User profile management (requires token)" },
       { name: "Companies", description: "Company CRUD and invite-code joining" },
       { name: "Members", description: "Company member management (roles, status, approval)" },
       { name: "Attendance", description: "Clock in/out, attendance records, daily dashboard" },
@@ -199,7 +200,161 @@ export function getOpenApiSpec(baseUrl?: string) {
         },
       },
 
-      // ─── Auth / User ─────────────────────────────────
+      // ─── Auth (public — no token required) ────────────
+      "/auth/signup": {
+        post: {
+          tags: ["Auth"],
+          summary: "Sign up a new user",
+          description: "Creates a Cognito account and sends a verification code to the email. Password must be at least 8 characters with uppercase, lowercase, and a number.",
+          security: [],
+          requestBody: {
+            required: true,
+            content: { "application/json": { schema: { type: "object", required: ["email", "password", "firstName", "lastName"], properties: {
+              email: { type: "string", example: "john@example.com" },
+              password: { type: "string", example: "MyPass123" },
+              firstName: { type: "string", example: "John" },
+              lastName: { type: "string", example: "Doe" },
+              phone: { type: "string", example: "+639171234567" },
+            } } } },
+          },
+          responses: {
+            "201": { description: "Sign up successful, verification code sent", content: { "application/json": { schema: { type: "object", properties: { userSub: { type: "string" }, confirmed: { type: "boolean" }, message: { type: "string" } } } } } },
+            "400": { description: "Missing required fields or invalid password" },
+            "409": { description: "Email already registered" },
+          },
+        },
+      },
+      "/auth/confirm": {
+        post: {
+          tags: ["Auth"],
+          summary: "Confirm sign up (verify email)",
+          description: "Verifies the email address using the 6-digit code sent during sign up.",
+          security: [],
+          requestBody: {
+            required: true,
+            content: { "application/json": { schema: { type: "object", required: ["email", "code"], properties: {
+              email: { type: "string", example: "john@example.com" },
+              code: { type: "string", example: "123456" },
+            } } } },
+          },
+          responses: {
+            "200": { description: "Email verified", content: { "application/json": { schema: { type: "object", properties: { confirmed: { type: "boolean" }, message: { type: "string" } } } } } },
+            "400": { description: "Invalid or expired code" },
+          },
+        },
+      },
+      "/auth/resend-code": {
+        post: {
+          tags: ["Auth"],
+          summary: "Resend verification code",
+          security: [],
+          requestBody: {
+            required: true,
+            content: { "application/json": { schema: { type: "object", required: ["email"], properties: { email: { type: "string" } } } } },
+          },
+          responses: {
+            "200": { description: "Code resent" },
+          },
+        },
+      },
+      "/auth/login": {
+        post: {
+          tags: ["Auth"],
+          summary: "Sign in and get tokens",
+          description: "Authenticates with email/password and returns JWT tokens. On first login, automatically creates the user record in the database. Optionally pass firstName/lastName for initial DB registration.",
+          security: [],
+          requestBody: {
+            required: true,
+            content: { "application/json": { schema: { type: "object", required: ["email", "password"], properties: {
+              email: { type: "string", example: "john@example.com" },
+              password: { type: "string", example: "MyPass123" },
+              firstName: { type: "string", description: "Used for DB user creation on first login" },
+              lastName: { type: "string", description: "Used for DB user creation on first login" },
+            } } } },
+          },
+          responses: {
+            "200": { description: "Authentication successful", content: { "application/json": { schema: { type: "object", properties: {
+              accessToken: { type: "string" },
+              idToken: { type: "string" },
+              refreshToken: { type: "string" },
+              expiresIn: { type: "integer", description: "Token TTL in seconds" },
+              tokenType: { type: "string", example: "Bearer" },
+              user: { $ref: "#/components/schemas/User" },
+            } } } } },
+            "401": { description: "Invalid credentials" },
+            "403": { description: "Email not verified" },
+          },
+        },
+      },
+      "/auth/refresh": {
+        post: {
+          tags: ["Auth"],
+          summary: "Refresh access token",
+          security: [],
+          requestBody: {
+            required: true,
+            content: { "application/json": { schema: { type: "object", required: ["refreshToken"], properties: { refreshToken: { type: "string" } } } } },
+          },
+          responses: {
+            "200": { description: "New access token", content: { "application/json": { schema: { type: "object", properties: { accessToken: { type: "string" }, idToken: { type: "string" }, expiresIn: { type: "integer" }, tokenType: { type: "string" } } } } } },
+            "401": { description: "Invalid refresh token" },
+          },
+        },
+      },
+      "/auth/forgot-password": {
+        post: {
+          tags: ["Auth"],
+          summary: "Request password reset",
+          security: [],
+          requestBody: {
+            required: true,
+            content: { "application/json": { schema: { type: "object", required: ["email"], properties: { email: { type: "string" } } } } },
+          },
+          responses: {
+            "200": { description: "Reset code sent to email" },
+            "404": { description: "User not found" },
+          },
+        },
+      },
+      "/auth/confirm-forgot-password": {
+        post: {
+          tags: ["Auth"],
+          summary: "Reset password with code",
+          security: [],
+          requestBody: {
+            required: true,
+            content: { "application/json": { schema: { type: "object", required: ["email", "code", "newPassword"], properties: {
+              email: { type: "string" },
+              code: { type: "string", example: "123456" },
+              newPassword: { type: "string" },
+            } } } },
+          },
+          responses: {
+            "200": { description: "Password reset successfully" },
+            "400": { description: "Invalid or expired code" },
+          },
+        },
+      },
+      "/auth/change-password": {
+        post: {
+          tags: ["Auth"],
+          summary: "Change password (requires current token)",
+          security: [{ BearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: { "application/json": { schema: { type: "object", required: ["previousPassword", "newPassword"], properties: {
+              previousPassword: { type: "string" },
+              newPassword: { type: "string" },
+            } } } },
+          },
+          responses: {
+            "200": { description: "Password changed" },
+            "401": { description: "Invalid token or previous password" },
+          },
+        },
+      },
+
+      // ─── User profile (requires token) ────────────────
       "/auth/register": {
         post: {
           tags: ["Auth"],
