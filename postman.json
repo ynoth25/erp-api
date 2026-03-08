@@ -1,0 +1,514 @@
+{
+  "info": {
+    "name": "ERP API",
+    "description": "Multi-tenant ERP API — DTR, biometric integration, company management, admin",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:3000" },
+    { "key": "api_key", "value": "dev-test-key-change-me" },
+    { "key": "bearer_token", "value": "" },
+    { "key": "company_id", "value": "" },
+    { "key": "member_id", "value": "" },
+    { "key": "device_id", "value": "" },
+    { "key": "user_id", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "GET / (root health)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "x-api-key", "value": "{{api_key}}" }
+            ],
+            "url": { "raw": "{{base_url}}/", "host": ["{{base_url}}"], "path": [""] }
+          }
+        },
+        {
+          "name": "GET /health",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "x-api-key", "value": "{{api_key}}" }
+            ],
+            "url": { "raw": "{{base_url}}/health", "host": ["{{base_url}}"], "path": ["health"] }
+          }
+        },
+        {
+          "name": "GET /health/db",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "x-api-key", "value": "{{api_key}}" }
+            ],
+            "url": { "raw": "{{base_url}}/health/db", "host": ["{{base_url}}"], "path": ["health", "db"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth / User",
+      "item": [
+        {
+          "name": "POST /auth/register",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{bearer_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\",\n  \"phone\": \"+639171234567\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{base_url}}/auth/register", "host": ["{{base_url}}"], "path": ["auth", "register"] }
+          }
+        },
+        {
+          "name": "GET /auth/me",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{bearer_token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/auth/me", "host": ["{{base_url}}"], "path": ["auth", "me"] }
+          }
+        },
+        {
+          "name": "PUT /auth/me",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{bearer_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\",\n  \"phone\": \"+639171234567\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{base_url}}/auth/me", "host": ["{{base_url}}"], "path": ["auth", "me"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Companies",
+      "item": [
+        {
+          "name": "POST /companies",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{bearer_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Acme Corp\",\n  \"address\": \"123 Main St, Metro Manila\",\n  \"timezone\": \"Asia/Manila\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{base_url}}/companies", "host": ["{{base_url}}"], "path": ["companies"] }
+          }
+        },
+        {
+          "name": "GET /companies",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{bearer_token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/companies", "host": ["{{base_url}}"], "path": ["companies"] }
+          }
+        },
+        {
+          "name": "POST /companies/join",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{bearer_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"A1B2C3\",\n  \"employeeId\": \"EMP-001\",\n  \"department\": \"Engineering\",\n  \"position\": \"Developer\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{base_url}}/companies/join", "host": ["{{base_url}}"], "path": ["companies", "join"] }
+          }
+        },
+        {
+          "name": "GET /companies/:companyId",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "x-api-key", "value": "{{api_key}}" }
+            ],
+            "url": { "raw": "{{base_url}}/companies/{{company_id}}", "host": ["{{base_url}}"], "path": ["companies", "{{company_id}}"] }
+          }
+        },
+        {
+          "name": "PUT /companies/:companyId",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{bearer_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Acme Corp Updated\",\n  \"address\": \"456 New St\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{base_url}}/companies/{{company_id}}", "host": ["{{base_url}}"], "path": ["companies", "{{company_id}}"] }
+          }
+        },
+        {
+          "name": "POST /companies/:companyId/regenerate-code",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{bearer_token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/companies/{{company_id}}/regenerate-code", "host": ["{{base_url}}"], "path": ["companies", "{{company_id}}", "regenerate-code"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Members",
+      "item": [
+        {
+          "name": "GET /companies/:companyId/members",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "x-api-key", "value": "{{api_key}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/companies/{{company_id}}/members",
+              "host": ["{{base_url}}"],
+              "path": ["companies", "{{company_id}}", "members"],
+              "query": [
+                { "key": "status", "value": "", "disabled": true },
+                { "key": "role", "value": "", "disabled": true },
+                { "key": "memberType", "value": "", "disabled": true },
+                { "key": "search", "value": "", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /companies/:companyId/members/:memberId",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "x-api-key", "value": "{{api_key}}" }
+            ],
+            "url": { "raw": "{{base_url}}/companies/{{company_id}}/members/{{member_id}}", "host": ["{{base_url}}"], "path": ["companies", "{{company_id}}", "members", "{{member_id}}"] }
+          }
+        },
+        {
+          "name": "PUT /companies/:companyId/members/:memberId",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{bearer_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"ADMIN\",\n  \"department\": \"Engineering\",\n  \"position\": \"Lead\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{base_url}}/companies/{{company_id}}/members/{{member_id}}", "host": ["{{base_url}}"], "path": ["companies", "{{company_id}}", "members", "{{member_id}}"] }
+          }
+        },
+        {
+          "name": "POST /companies/:companyId/members/:memberId/approve",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{bearer_token}}" }
+            ],
+            "url": { "raw": "{{base_url}}/companies/{{company_id}}/members/{{member_id}}/approve", "host": ["{{base_url}}"], "path": ["companies", "{{company_id}}", "members", "{{member_id}}", "approve"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Attendance / DTR",
+      "item": [
+        {
+          "name": "POST /companies/:companyId/clock-in",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{bearer_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"source\": \"WEB\",\n  \"remarks\": \"Good morning\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{base_url}}/companies/{{company_id}}/clock-in", "host": ["{{base_url}}"], "path": ["companies", "{{company_id}}", "clock-in"] }
+          }
+        },
+        {
+          "name": "POST /companies/:companyId/clock-out",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{bearer_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"source\": \"WEB\",\n  \"remarks\": \"End of shift\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{base_url}}/companies/{{company_id}}/clock-out", "host": ["{{base_url}}"], "path": ["companies", "{{company_id}}", "clock-out"] }
+          }
+        },
+        {
+          "name": "GET /companies/:companyId/attendance",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "x-api-key", "value": "{{api_key}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/companies/{{company_id}}/attendance",
+              "host": ["{{base_url}}"],
+              "path": ["companies", "{{company_id}}", "attendance"],
+              "query": [
+                { "key": "memberId", "value": "", "disabled": true },
+                { "key": "from", "value": "2026-02-01", "disabled": true },
+                { "key": "to", "value": "2026-02-15", "disabled": true },
+                { "key": "status", "value": "", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /companies/:companyId/attendance/daily",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "x-api-key", "value": "{{api_key}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/companies/{{company_id}}/attendance/daily?date=2026-02-15",
+              "host": ["{{base_url}}"],
+              "path": ["companies", "{{company_id}}", "attendance", "daily"],
+              "query": [
+                { "key": "date", "value": "2026-02-15" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /companies/:companyId/clock-events",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "x-api-key", "value": "{{api_key}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/companies/{{company_id}}/clock-events",
+              "host": ["{{base_url}}"],
+              "path": ["companies", "{{company_id}}", "clock-events"],
+              "query": [
+                { "key": "memberId", "value": "", "disabled": true },
+                { "key": "date", "value": "2026-02-15", "disabled": true },
+                { "key": "attendanceId", "value": "", "disabled": true }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Devices",
+      "item": [
+        {
+          "name": "GET /companies/:companyId/devices",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "x-api-key", "value": "{{api_key}}" }
+            ],
+            "url": { "raw": "{{base_url}}/companies/{{company_id}}/devices", "host": ["{{base_url}}"], "path": ["companies", "{{company_id}}", "devices"] }
+          }
+        },
+        {
+          "name": "POST /companies/:companyId/devices",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{bearer_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Main Entrance Scanner\",\n  \"deviceType\": \"FINGERPRINT\",\n  \"serialNumber\": \"FP-2026-001\",\n  \"location\": \"Building A Lobby\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{base_url}}/companies/{{company_id}}/devices", "host": ["{{base_url}}"], "path": ["companies", "{{company_id}}", "devices"] }
+          }
+        },
+        {
+          "name": "PUT /companies/:companyId/devices/:deviceId",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{bearer_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Scanner Name\",\n  \"location\": \"Building B\",\n  \"isActive\": true\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{base_url}}/companies/{{company_id}}/devices/{{device_id}}", "host": ["{{base_url}}"], "path": ["companies", "{{company_id}}", "devices", "{{device_id}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Webhooks",
+      "item": [
+        {
+          "name": "POST /webhook/biometric",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "x-device-key", "value": "YOUR_DEVICE_API_KEY" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"employeeId\": \"EMP-001\",\n  \"eventType\": \"CLOCK_IN\",\n  \"remarks\": \"Fingerprint scan\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{base_url}}/webhook/biometric", "host": ["{{base_url}}"], "path": ["webhook", "biometric"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "GET /admin/users",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "x-api-key", "value": "{{api_key}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin/users",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "users"],
+              "query": [
+                { "key": "search", "value": "", "disabled": true },
+                { "key": "isAdmin", "value": "", "disabled": true },
+                { "key": "isActive", "value": "", "disabled": true },
+                { "key": "page", "value": "1", "disabled": true },
+                { "key": "limit", "value": "50", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET /admin/users/:userId",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "x-api-key", "value": "{{api_key}}" }
+            ],
+            "url": { "raw": "{{base_url}}/admin/users/{{user_id}}", "host": ["{{base_url}}"], "path": ["admin", "users", "{{user_id}}"] }
+          }
+        },
+        {
+          "name": "PUT /admin/users/:userId",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "x-api-key", "value": "{{api_key}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"isAdmin\": true,\n  \"isActive\": true\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{base_url}}/admin/users/{{user_id}}", "host": ["{{base_url}}"], "path": ["admin", "users", "{{user_id}}"] }
+          }
+        },
+        {
+          "name": "GET /admin/companies",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "x-api-key", "value": "{{api_key}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin/companies",
+              "host": ["{{base_url}}"],
+              "path": ["admin", "companies"],
+              "query": [
+                { "key": "search", "value": "", "disabled": true },
+                { "key": "isActive", "value": "", "disabled": true },
+                { "key": "page", "value": "1", "disabled": true },
+                { "key": "limit", "value": "50", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "POST /admin/companies/:companyId/add-user",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "x-api-key", "value": "{{api_key}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"newuser@example.com\",\n  \"firstName\": \"Jane\",\n  \"lastName\": \"Smith\",\n  \"phone\": \"+639181234567\",\n  \"role\": \"MEMBER\",\n  \"memberType\": \"EMPLOYEE\",\n  \"employeeId\": \"EMP-100\",\n  \"department\": \"Engineering\",\n  \"position\": \"Developer\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{base_url}}/admin/companies/{{company_id}}/add-user", "host": ["{{base_url}}"], "path": ["admin", "companies", "{{company_id}}", "add-user"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Docs",
+      "item": [
+        {
+          "name": "GET /docs (Swagger UI)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/docs", "host": ["{{base_url}}"], "path": ["docs"] }
+          }
+        },
+        {
+          "name": "GET /docs/openapi.json",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{base_url}}/docs/openapi.json", "host": ["{{base_url}}"], "path": ["docs", "openapi.json"] }
+          }
+        }
+      ]
+    }
+  ]
+}
