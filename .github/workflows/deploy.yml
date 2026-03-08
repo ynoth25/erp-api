@@ -25,13 +25,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Push Prisma schema to DSQL
+      - name: Run safe DB migrations
         env:
           DSQL_HOST: ${{ secrets.DSQL_HOST }}
           DSQL_REGION: ap-northeast-1
           DSQL_USER: admin
           DSQL_DATABASE: postgres
-        run: npx tsx scripts/prisma-dsql.ts db push --skip-generate
+        run: npx tsx scripts/migrate-safe.ts
 
       - name: Build
         run: node scripts/sam-build.mjs
