@@ -22,6 +22,17 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ap-northeast-1
 
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Push Prisma schema to DSQL
+        env:
+          DSQL_HOST: ${{ secrets.DSQL_HOST }}
+          DSQL_REGION: ap-northeast-1
+          DSQL_USER: admin
+          DSQL_DATABASE: postgres
+        run: npx tsx scripts/prisma-dsql.ts db push --accept-data-loss --skip-generate
+
       - name: Build
         run: node scripts/sam-build.mjs
 
