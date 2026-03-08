@@ -26,6 +26,15 @@ export async function authorize(event: APIGatewayProxyEventV2): Promise<AuthResu
     return { authorized: true };
   }
 
+  const publicAuthPaths = [
+    "/auth/signup", "/auth/confirm", "/auth/resend-code",
+    "/auth/login", "/auth/refresh",
+    "/auth/forgot-password", "/auth/confirm-forgot-password",
+  ];
+  if (publicAuthPaths.includes(path)) {
+    return { authorized: true };
+  }
+
   // --- 1. Try Cognito Bearer token ---
   const authHeader = event.headers?.["authorization"] ?? "";
   if (authHeader.startsWith("Bearer ")) {

@@ -78,6 +78,9 @@
             "body": {
               "mode": "raw",
               "raw": "{\n  \"email\": \"john@example.com\",\n  \"password\": \"MyPass123\",\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\",\n  \"phone\": \"+639171234567\"\n}"
+            },
+            "auth": {
+              "type": "noauth"
             }
           }
         },
@@ -104,6 +107,9 @@
             "body": {
               "mode": "raw",
               "raw": "{\n  \"email\": \"john@example.com\",\n  \"code\": \"123456\"\n}"
+            },
+            "auth": {
+              "type": "noauth"
             }
           }
         },
@@ -130,6 +136,9 @@
             "body": {
               "mode": "raw",
               "raw": "{\n  \"email\": \"john@example.com\"\n}"
+            },
+            "auth": {
+              "type": "noauth"
             }
           }
         },
@@ -174,6 +183,9 @@
             "body": {
               "mode": "raw",
               "raw": "{\n  \"email\": \"john@example.com\",\n  \"password\": \"MyPass123\"\n}"
+            },
+            "auth": {
+              "type": "noauth"
             }
           }
         },
@@ -215,6 +227,9 @@
             "body": {
               "mode": "raw",
               "raw": "{\n  \"refreshToken\": \"{{refreshTokenValue}}\"\n}"
+            },
+            "auth": {
+              "type": "noauth"
             }
           }
         },
@@ -241,6 +256,9 @@
             "body": {
               "mode": "raw",
               "raw": "{\n  \"email\": \"john@example.com\"\n}"
+            },
+            "auth": {
+              "type": "noauth"
             }
           }
         },
@@ -267,6 +285,9 @@
             "body": {
               "mode": "raw",
               "raw": "{\n  \"email\": \"john@example.com\",\n  \"code\": \"123456\",\n  \"newPassword\": \"NewPass456\"\n}"
+            },
+            "auth": {
+              "type": "noauth"
             }
           }
         },
