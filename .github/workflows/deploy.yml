@@ -27,6 +27,17 @@ jobs:
 
       - name: Deploy
         run: |
+          OVERRIDES="FunctionName=erp-api"
+          OVERRIDES+=" DsqlHost=${{ secrets.DSQL_HOST }}"
+          OVERRIDES+=" DsqlRegion=ap-northeast-1"
+          OVERRIDES+=" DsqlUser=admin"
+          OVERRIDES+=" DsqlDatabase=postgres"
+          OVERRIDES+=" DsqlClusterArn=${{ secrets.DSQL_CLUSTER_ARN }}"
+          OVERRIDES+=" ApiKeys=${{ secrets.API_KEYS }}"
+          if [ -n "${{ secrets.ALLOWED_ORIGINS }}" ]; then
+            OVERRIDES+=" AllowedOrigins=${{ secrets.ALLOWED_ORIGINS }}"
+          fi
+
           sam deploy \
             --template-file .aws-sam/build/template.yaml \
             --stack-name erp-api \
@@ -36,12 +47,4 @@ jobs:
             --capabilities CAPABILITY_IAM \
             --no-confirm-changeset \
             --no-fail-on-empty-changeset \
-            --parameter-overrides \
-              FunctionName=erp-api \
-              DsqlHost=${{ secrets.DSQL_HOST }} \
-              DsqlRegion=ap-northeast-1 \
-              DsqlUser=admin \
-              DsqlDatabase=postgres \
-              DsqlClusterArn=${{ secrets.DSQL_CLUSTER_ARN }} \
-              ApiKeys=${{ secrets.API_KEYS }} \
-              AllowedOrigins=${{ secrets.ALLOWED_ORIGINS }}
+            --parameter-overrides $OVERRIDES
