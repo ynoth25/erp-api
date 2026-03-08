@@ -126,6 +126,13 @@ for (const p of bloatPaths) {
   }
 }
 
+// Remove node_modules/.bin (CLI symlinks not needed at runtime, dangling links break SAM upload)
+const dotBin = join(ARTIFACT_DIR, "node_modules", ".bin");
+if (existsSync(dotBin)) {
+  rmSync(dotBin, { recursive: true, force: true });
+  console.log(`   Removed: ./node_modules/.bin`);
+}
+
 // 10. Measure final size
 console.log("\n10. Measuring artifact size...");
 let totalSize = 0;
