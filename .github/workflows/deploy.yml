@@ -31,7 +31,7 @@ jobs:
           DSQL_REGION: ap-northeast-1
           DSQL_USER: admin
           DSQL_DATABASE: postgres
-        run: npx tsx scripts/prisma-dsql.ts db push --accept-data-loss --skip-generate
+        run: npx tsx scripts/prisma-dsql.ts db push --skip-generate
 
       - name: Build
         run: node scripts/sam-build.mjs
