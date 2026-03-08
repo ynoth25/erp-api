@@ -47,4 +47,5 @@ jobs:
             --capabilities CAPABILITY_IAM \
             --no-confirm-changeset \
             --no-fail-on-empty-changeset \
+            --force-upload \
             --parameter-overrides $OVERRIDES
